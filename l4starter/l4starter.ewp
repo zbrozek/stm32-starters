@@ -317,7 +317,7 @@
         <option>
           <name>CCIncludePath2</name>
           <state>$PROJ_DIR$</state>
-          <state>$PROJ_DIR$\..\lib\drivers</state>
+          <state>$PROJ_DIR$\..\drivers</state>
           <state>$PROJ_DIR$\..\lib\stm32l4</state>
           <state>$PROJ_DIR$\..\lib\stm32l4_hal</state>
           <state>$PROJ_DIR$\..\lib\freertos_9-0-0\portable\Common</state>
@@ -1939,13 +1939,13 @@
   <group>
     <name>drivers</name>
     <file>
-      <name>$PROJ_DIR$\..\lib\drivers\pin.c</name>
+      <name>$PROJ_DIR$\..\drivers\pin.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\lib\drivers\rcc.c</name>
+      <name>$PROJ_DIR$\..\drivers\rcc.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\lib\drivers\spi.c</name>
+      <name>$PROJ_DIR$\..\drivers\spi.c</name>
     </file>
   </group>
   <group>

@@ -13,7 +13,7 @@ embedded environment.
 
 ## Forking
 * Copy the project into your own folder.
-* Rename the project (replace-in-files "l4starter" with another name).
+* Rename the project (replace-in-files "f7starter" with another name).
 * Update the compiler target to your specific processor.
 * Update the project-wide preprocessor `#defines` for your chip and clocks.
 * Update the debugger settings to match your debugging hardware.

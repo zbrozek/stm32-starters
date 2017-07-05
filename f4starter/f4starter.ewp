@@ -186,7 +186,6 @@
         <option>
           <name>CCDefines</name>
           <state>HSE_VALUE=8000000</state>
-          <state>STM32F4</state>
           <state>STM32F407xx</state>
           <state>USE_FULL_LL_DRIVER</state>
         </option>
@@ -318,7 +317,7 @@
         <option>
           <name>CCIncludePath2</name>
           <state>$PROJ_DIR$</state>
-          <state>$PROJ_DIR$\..\lib\drivers</state>
+          <state>$PROJ_DIR$\..\drivers</state>
           <state>$PROJ_DIR$\..\lib\stm32f4</state>
           <state>$PROJ_DIR$\..\lib\stm32f4_hal</state>
           <state>$PROJ_DIR$\..\lib\freertos_9-0-0\portable\Common</state>
@@ -1940,19 +1939,19 @@
   <group>
     <name>drivers</name>
     <file>
-      <name>$PROJ_DIR$\..\lib\drivers\csp_stm32f4.c</name>
+      <name>$PROJ_DIR$\..\drivers\csp_stm32f4.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\lib\drivers\ethernet.c</name>
+      <name>$PROJ_DIR$\..\drivers\ethernet.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\lib\drivers\pin.c</name>
+      <name>$PROJ_DIR$\..\drivers\pin.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\lib\drivers\rcc.c</name>
+      <name>$PROJ_DIR$\..\drivers\rcc.c</name>
     </file>
     <file>
-      <name>$PROJ_DIR$\..\lib\drivers\spi.c</name>
+      <name>$PROJ_DIR$\..\drivers\spi.c</name>
     </file>
   </group>
   <group>
