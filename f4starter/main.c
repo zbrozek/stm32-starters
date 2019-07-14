@@ -96,7 +96,7 @@ int main()
 }
 
 const char *pcApplicationHostnameHook(void) {
-  const char* hostname = "f7starter";
+  const char* hostname = "f4starter";
   return hostname;
 }
 
