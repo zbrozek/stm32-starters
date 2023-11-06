@@ -1,4 +1,5 @@
 #include "pin.h"
+#include "stm32.h"
 
 // Atomic set pin high.
 extern inline void Pin_SetHigh(Pin *pin);

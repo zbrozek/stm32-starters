@@ -1,7 +1,6 @@
 #ifndef RCC_H
 #define RCC_H
 
-#include "stm32.h"
 #include <stdbool.h>
 #include <stdint.h>
 

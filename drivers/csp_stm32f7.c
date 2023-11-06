@@ -10,7 +10,7 @@ volatile static int64_t CSP_grossCycleCount = 0;
 // Call more often than 2^32 cycles to maintain a 64-bit cycle count
 void CSP_UpdateGrossCycleCount(void) {
   static uint32_t lastCycleCount = 0;
-  uint32_t currentCycleCount = DWT->CYCCNT;;
+  uint32_t currentCycleCount = DWT->CYCCNT;
 
   if(currentCycleCount < lastCycleCount){
       CSP_grossCycleCount += ULONG_MAX;

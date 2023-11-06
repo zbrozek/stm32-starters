@@ -1,77 +1,34 @@
 /*
-    FreeRTOS V9.0.0 - Copyright (C) 2016 Real Time Engineers Ltd.
-    All rights reserved
-
-    VISIT http://www.FreeRTOS.org TO ENSURE YOU ARE USING THE LATEST VERSION.
-
-    This file is part of the FreeRTOS distribution.
-
-    FreeRTOS is free software; you can redistribute it and/or modify it under
-    the terms of the GNU General Public License (version 2) as published by the
-    Free Software Foundation >>!AND MODIFIED BY!<< the FreeRTOS exception.
-
-    ***************************************************************************
-    >>!   NOTE: The modification to the GPL is included to allow you to     !<<
-    >>!   distribute a combined work that includes FreeRTOS without being   !<<
-    >>!   obliged to provide the source code for proprietary components     !<<
-    >>!   outside of the FreeRTOS kernel.                                   !<<
-    ***************************************************************************
-
-    FreeRTOS is distributed in the hope that it will be useful, but WITHOUT ANY
-    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-    FOR A PARTICULAR PURPOSE.  Full license text is available on the following
-    link: http://www.freertos.org/a00114.html
-
-    ***************************************************************************
-     *                                                                       *
-     *    FreeRTOS provides completely free yet professionally developed,    *
-     *    robust, strictly quality controlled, supported, and cross          *
-     *    platform software that is more than just the market leader, it     *
-     *    is the industry's de facto standard.                               *
-     *                                                                       *
-     *    Help yourself get started quickly while simultaneously helping     *
-     *    to support the FreeRTOS project by purchasing a FreeRTOS           *
-     *    tutorial book, reference manual, or both:                          *
-     *    http://www.FreeRTOS.org/Documentation                              *
-     *                                                                       *
-    ***************************************************************************
-
-    http://www.FreeRTOS.org/FAQHelp.html - Having a problem?  Start by reading
-    the FAQ page "My application does not run, what could be wrong?".  Have you
-    defined configASSERT()?
-
-    http://www.FreeRTOS.org/support - In return for receiving this top quality
-    embedded software for free we request you assist our global community by
-    participating in the support forum.
-
-    http://www.FreeRTOS.org/training - Investing in training allows your team to
-    be as productive as possible as early as possible.  Now you can receive
-    FreeRTOS training directly from Richard Barry, CEO of Real Time Engineers
-    Ltd, and the world's leading authority on the world's leading RTOS.
-
-    http://www.FreeRTOS.org/plus - A selection of FreeRTOS ecosystem products,
-    including FreeRTOS+Trace - an indispensable productivity tool, a DOS
-    compatible FAT file system, and our tiny thread aware UDP/IP stack.
-
-    http://www.FreeRTOS.org/labs - Where new FreeRTOS products go to incubate.
-    Come and try FreeRTOS+TCP, our new open source TCP/IP stack for FreeRTOS.
-
-    http://www.OpenRTOS.com - Real Time Engineers ltd. license FreeRTOS to High
-    Integrity Systems ltd. to sell under the OpenRTOS brand.  Low cost OpenRTOS
-    licenses offer ticketed support, indemnification and commercial middleware.
-
-    http://www.SafeRTOS.com - High Integrity Systems also provide a safety
-    engineered and independently SIL3 certified version for use in safety and
-    mission critical applications that require provable dependability.
-
-    1 tab == 4 spaces!
-*/
+ * FreeRTOS V202212.01
+ * Copyright (C) 2020 Amazon.com, Inc. or its affiliates.  All Rights Reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of
+ * this software and associated documentation files (the "Software"), to deal in
+ * the Software without restriction, including without limitation the rights to
+ * use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+ * the Software, and to permit persons to whom the Software is furnished to do so,
+ * subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+ * FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+ * COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+ * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * https://www.FreeRTOS.org
+ * https://github.com/FreeRTOS
+ *
+ */
 
 
 /*****************************************************************************
  *
  * See the following URL for configuration information.
- * http://www.freertos.org/FreeRTOS-Plus/FreeRTOS_Plus_TCP/TCP_IP_Configuration.html
+ * https://www.FreeRTOS.org/FreeRTOS-Plus/FreeRTOS_Plus_TCP/TCP_IP_Configuration.html
  *
  *****************************************************************************/
 
@@ -82,15 +39,34 @@
 extern "C" {
 #endif
 
+/* Set to 1 to print out debug messages.  If ipconfigHAS_DEBUG_PRINTF is set to
+1 then FreeRTOS_debug_printf should be defined to the function used to print
+out the debugging messages. */
+#define ipconfigHAS_DEBUG_PRINTF	0
+#if( ipconfigHAS_DEBUG_PRINTF == 1 )
+	#define FreeRTOS_debug_printf(X)	vLoggingPrintf X
+#endif
+
+/* Set to 1 to print out non debugging messages, for example the output of the
+FreeRTOS_netstat() command, and ping replies.  If ipconfigHAS_PRINTF is set to 1
+then FreeRTOS_printf should be set to the function used to print out the
+messages. */
+#define ipconfigHAS_PRINTF			0
+#if( ipconfigHAS_PRINTF == 1 )
+	#define FreeRTOS_printf(X)			vLoggingPrintf X
+#endif
+
 #include "stdio.h"
 
 /* Define the byte order of the target MCU (the MCU FreeRTOS+TCP is executing
 on).  Valid options are pdFREERTOS_BIG_ENDIAN and pdFREERTOS_LITTLE_ENDIAN. */
 #define ipconfigBYTE_ORDER pdFREERTOS_LITTLE_ENDIAN
 
-/* The checksums will be checked and calculated by the STM32F4x ETH peripheral. */
-#define ipconfigDRIVER_INCLUDED_TX_IP_CHECKSUM		( 1 )
-#define ipconfigDRIVER_INCLUDED_RX_IP_CHECKSUM		( 1 )
+/* If the network card/driver includes checksum offloading (IP/TCP/UDP checksums)
+then set ipconfigDRIVER_INCLUDED_RX_IP_CHECKSUM to 1 to prevent the software
+stack repeating the checksum calculations. */
+#define ipconfigDRIVER_INCLUDED_RX_IP_CHECKSUM   1
+#define ipconfigDRIVER_INCLUDED_TX_IP_CHECKSUM   1
 
 /* Several API's will block until the result is known, or the action has been
 performed, for example FreeRTOS_send() and FreeRTOS_recv().  The timeouts can be
@@ -118,10 +94,10 @@ a socket. */
 #define ipconfigUSE_DNS_CACHE				( 1 )
 #define ipconfigDNS_CACHE_NAME_LENGTH		( 16 )
 #define ipconfigDNS_CACHE_ENTRIES			( 4 )
-#define ipconfigDNS_REQUEST_ATTEMPTS		( 4 )
+#define ipconfigDNS_REQUEST_ATTEMPTS		( 2 )
 
 /* The IP stack executes it its own task (although any application task can make
-use of its services through the published sockets API). ipconfigIP_TASK_PRIORITY
+use of its services through the published sockets API). ipconfigUDP_TASK_PRIORITY
 sets the priority of the task that executes the IP stack.  The priority is a
 standard FreeRTOS task priority so can take any value from 0 (the lowest
 priority) to (configMAX_PRIORITIES - 1) (the highest priority).
@@ -166,7 +142,7 @@ free) the network buffers are themselves blocked waiting for a network buffer.
 ipconfigMAX_SEND_BLOCK_TIME_TICKS is specified in RTOS ticks.  A time in
 milliseconds can be converted to a time in ticks by dividing the time in
 milliseconds by portTICK_PERIOD_MS. */
-#define ipconfigUDP_MAX_SEND_BLOCK_TIME_TICKS ( 5000 / portTICK_PERIOD_MS )
+#define ipconfigUDP_MAX_SEND_BLOCK_TIME_TICKS ( 5000U / portTICK_PERIOD_MS )
 
 /* If ipconfigUSE_DHCP is 1 then FreeRTOS+TCP will attempt to retrieve an IP
 address, netmask, DNS server address and gateway address from a DHCP server.  If
@@ -186,7 +162,7 @@ ipconfigMAXIMUM_DISCOVER_TX_PERIOD.  The IP stack will revert to using the
 static IP address passed as a parameter to FreeRTOS_IPInit() if the
 re-transmission time interval reaches ipconfigMAXIMUM_DISCOVER_TX_PERIOD without
 a DHCP reply being received. */
-#define ipconfigMAXIMUM_DISCOVER_TX_PERIOD		( pdMS_TO_TICKS( 30000 ) )
+#define ipconfigMAXIMUM_DISCOVER_TX_PERIOD		( 120000U / portTICK_PERIOD_MS )
 
 /* The ARP cache is a table that maps IP addresses to MAC addresses.  The IP
 stack can only send a UDP message to a remove IP address if it knowns the MAC
@@ -271,12 +247,11 @@ contain.  For normal Ethernet V2 frames the maximum MTU is 1500.  Setting a
 lower value can save RAM, depending on the buffer management scheme used.  If
 ipconfigCAN_FRAGMENT_OUTGOING_PACKETS is 1 then (ipconfigNETWORK_MTU - 28) must
 be divisible by 8. */
-
-#define ipconfigNETWORK_MTU					1500
+#define ipconfigNETWORK_MTU		1500U
 
 /* Set ipconfigUSE_DNS to 1 to include a basic DNS client/resolver.  DNS is used
 through the FreeRTOS_gethostbyname() API function. */
-#define ipconfigUSE_DNS								1
+#define ipconfigUSE_DNS			1
 
 /* If ipconfigREPLY_TO_INCOMING_PINGS is set to 1 then the IP stack will
 generate replies to incoming ICMP echo (ping) requests. */
@@ -305,15 +280,12 @@ Ethernet driver does all the necessary filtering in hardware then software
 filtering can be removed by using a value other than 1 or 0. */
 #define ipconfigETHERNET_DRIVER_FILTERS_FRAME_TYPES	1
 
-/* The windows simulator cannot really simulate MAC interrupts, and needs to
-block occasionally to allow other tasks to run. */
-#define configWINDOWS_MAC_INTERRUPT_SIMULATOR_DELAY ( 2 / portTICK_PERIOD_MS )
 
 /* Advanced only: in order to access 32-bit fields in the IP packets with
-32-bit memory instructions, all packets will be stored 32-bit-aligned, plus
-16-bits.  This has to do with the contents of the IP-packets: all 32-bit fields
-are 32-bit-aligned, plus 16-bit(!). */
-#define ipconfigPACKET_FILLER_SIZE 2
+32-bit memory instructions, all packets will be stored 32-bit-aligned, plus 16-bits.
+This has to do with the contents of the IP-packets: all 32-bit fields are
+32-bit-aligned, plus 16-bit(!) */
+#define ipconfigPACKET_FILLER_SIZE 2U
 
 /* Define the size of the pool of TCP window descriptors.  On the average, each
 TCP socket will use up to 2 x 6 descriptors, meaning that it can have 2 x 6
@@ -334,8 +306,8 @@ real program memory (RAM or flash) or just has a random non-zero value. */
 
 /* Include support for TCP hang protection.  All sockets in a connecting or
 disconnecting stage will timeout after a period of non-activity. */
-#define ipconfigTCP_HANG_PROTECTION				( 1 )
-#define ipconfigTCP_HANG_PROTECTION_TIME		( 30 )
+#define ipconfigTCP_HANG_PROTECTION			( 1 )
+#define ipconfigTCP_HANG_PROTECTION_TIME	( 30 )
 
 /* Include support for TCP keep-alive messages. */
 #define ipconfigTCP_KEEP_ALIVE				( 1 )
@@ -361,23 +333,6 @@ FTP and HTTP servers both execute in the standard server task. */
 writes formatted strings to a buffer, and creates a task that removes messages
 from the buffer and sends them to the UDP address and port defined by the
 constants that follow. */
-
-/* Set to 1 to print out debug messages.  If ipconfigHAS_DEBUG_PRINTF is set to
-1 then FreeRTOS_debug_printf should be defined to the function used to print
-out the debugging messages. */
-#define ipconfigHAS_DEBUG_PRINTF	1
-#if( ipconfigHAS_DEBUG_PRINTF == 1 )
-	#define FreeRTOS_debug_printf(X)	printf X
-#endif
-
-/* Set to 1 to print out non debugging messages, for example the output of the
-FreeRTOS_netstat() command, and ping replies.  If ipconfigHAS_PRINTF is set to 1
-then FreeRTOS_printf should be set to the function used to print out the
-messages. */
-#define ipconfigHAS_PRINTF			1
-#if( ipconfigHAS_PRINTF == 1 )
-	#define FreeRTOS_printf(X)			printf X
-#endif
 
 /* When set to 1, the application writer must provide the implementation of a
 function with the following name and prototype:
