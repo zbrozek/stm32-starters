@@ -16,41 +16,41 @@ volatile static int64_t CSP_grossCycleCount = 0;
 
 // Call more often than 2^32 cycles to maintain a 64-bit cycle count
 void CSP_UpdateGrossCycleCount(void) {
-    static uint32_t lastCycleCount = 0;
-    uint32_t currentCycleCount = CYCCNT;
+  static uint32_t lastCycleCount = 0;
+  uint32_t currentCycleCount = CYCCNT;
 
-    if(currentCycleCount < lastCycleCount){
-        CSP_grossCycleCount += ULONG_MAX;
-    }
+  if(currentCycleCount < lastCycleCount){
+    CSP_grossCycleCount += ULONG_MAX;
+  }
 
-    lastCycleCount = currentCycleCount;
+  lastCycleCount = currentCycleCount;
 }
 
 // Compute the total number of elapsed clock cycles since boot
 int64_t CSP_TotalClockCycles(void) {
-    // Define the order of volatile accesses by creating a temporary variable
-    int64_t bigPart = CSP_grossCycleCount;
-    return bigPart + CYCCNT;
+  // Define the order of volatile accesses by creating a temporary variable
+  int64_t bigPart = CSP_grossCycleCount;
+  return bigPart + CYCCNT;
 }
 
 // Compute the number of milliseconds elapsed since boot
 int64_t CSP_TimeMillis(void) {
-    return CSP_TotalClockCycles() * 1000 / SystemCoreClock;
+  return CSP_TotalClockCycles() * 1000 / SystemCoreClock;
 }
 
 // Return flash size in 32-bit words
 int32_t CSP_GetFlashSize(void) {
-    return ((*(volatile uint32_t*)0x1FFF7A22) & 0x0000FFFF) << 8;
+  return ((*(volatile uint32_t*)0x1FFF7A22) & 0x0000FFFF) << 8;
 }
 
 // Return flash start address for this processor
 int32_t CSP_GetFlashStartAddr(void) {
-    return 0x08000000;
+  return 0x08000000;
 }
 
 // Reset the CPU
 void CSP_Reboot(void) {
-    NVIC_SystemReset();
+  NVIC_SystemReset();
 }
 
 // M3/M4 core configuration to turn on cycle counting since boot

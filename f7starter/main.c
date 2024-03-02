@@ -10,6 +10,7 @@
 #include "csp.h"
 #include "pin.h"
 #include "rcc.h"
+#include "rng.h"
 #include "ethernet.h"
 #include "ethernet_config.h"
 
@@ -46,6 +47,28 @@ bool PHY_Init(void) {
   return true;
 }
 
+/*
+ * Callback that provides the inputs necessary to generate a randomized TCP
+ * Initial Sequence Number per RFC 6528.  THIS IS ONLY A DUMMY IMPLEMENTATION
+ * THAT RETURNS A PSEUDO RANDOM NUMBER SO IS NOT INTENDED FOR USE IN PRODUCTION
+ * SYSTEMS.
+ */
+extern uint32_t ulApplicationGetNextSequenceNumber(
+  uint32_t ulSourceAddress,
+  uint16_t usSourcePort,
+  uint32_t ulDestinationAddress,
+  uint16_t usDestinationPort )
+{
+  uint32_t random_value;
+  RNG_GetRand32(&random_value);
+  return random_value;
+}
+
+// Supply a random number to FreeRTOS+TCP stack.
+BaseType_t xApplicationGetRandomNumber(uint32_t *pulNumber) {
+    return RNG_GetRand32(pulNumber);
+}
+
 static void exampleTask(void *pvParameters) {
   // Hack to silence compiler warnings about unused pvParameters.
   ( void ) pvParameters;
@@ -54,7 +77,6 @@ static void exampleTask(void *pvParameters) {
   TickType_t xNextWakeTime = xTaskGetTickCount();
 
   for( ;; ) {
-    printf("derp\n");
     // Pauses this task until 1000 ms after its last wakeup.
     vTaskDelayUntil(&xNextWakeTime, 1000);
   }
@@ -102,7 +124,9 @@ const char *pcApplicationHostnameHook(void) {
 }
 
 // This is a good place to turn on a sadness LED.
-void vApplicationStackOverflowHook(void){while(1);}
+void vApplicationStackOverflowHook(TaskHandle_t pxTask, char *pcTaskName) {
+  while(1);
+}
 
 // You could add some simple power-saving code here.
 void vApplicationIdleHook(void){}

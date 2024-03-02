@@ -8,6 +8,7 @@
 // TODO(zbrozek): Make clear the pre-reqs on *rcc for calling RCC_ClockConfig().
 
 #include "rcc.h"
+#include "stm32.h"
 
 static const uint32_t kPllQMin = 0x2;
 static const uint32_t kPllQMax = 0xF;

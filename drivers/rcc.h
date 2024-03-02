@@ -1,7 +1,6 @@
 #ifndef RCC_H
 #define RCC_H
 
-#include "stm32.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -38,9 +37,6 @@ void RCC_ReadClocks(Rcc *rcc);
 // Computes values for and sets up the STM32 clock tree, as well as setting
 // appropriate flash wait states (assuming 3.3 volts VCC).
 //    *rcc: May be NULL. If not, is populated with clock frequencies.
-//    sys_src: Clock from which to drive SYSCLK. May be HSI, HSE, or PLL.
-//    pll_src: May be NULL if PLL is unused. Otherwise must be HSE or HSI.
-//    osc: Set to true if HSE is an oscillator rather than a crystal.
 //    target: May be NULL if PLL is unused. Set to the target SYSCLK frequency.
 uint32_t RCC_ClockConfig(Rcc *rcc, uint32_t target);
 
