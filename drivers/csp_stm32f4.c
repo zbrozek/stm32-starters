@@ -38,9 +38,9 @@ int64_t CSP_TimeMillis(void) {
   return CSP_TotalClockCycles() * 1000 / SystemCoreClock;
 }
 
-// Return flash size in 32-bit words
+// Return flash size in bytes
 int32_t CSP_GetFlashSize(void) {
-  return ((*(volatile uint32_t*)0x1FFF7A22) & 0x0000FFFF) << 8;
+  return ((*(volatile uint32_t*)0x1FFF7A22) & 0x0000FFFF) << 10;
 }
 
 // Return flash start address for this processor

@@ -31,9 +31,9 @@ int64_t CSP_TimeMillis(void) {
   return CSP_TotalClockCycles() * 1000 / SystemCoreClock;
 }
 
-// Return flash size in 32-bit words
+// Return flash size in bytes
 int32_t CSP_GetFlashSize(void) {
-  return (*(volatile uint32_t*)0x1FF0F442) & 0x0000FFFF;
+  return ((*(volatile uint32_t*)0x1FF0F442) & 0x0000FFFF) << 10;
 }
 
 // Return flash start address for this processor
@@ -59,7 +59,7 @@ void CSP_PrintStartupInfo() {
   Rcc rcc;
   RCC_ReadClocks(&rcc);
 
-  printf("STM32F4 with %u KiB flash.\r\n", CSP_GetFlashSize() >> 10);
+  printf("STM32F7 with %u KiB flash.\r\n", CSP_GetFlashSize() >> 10);
   printf("SYSCLK at %d MHz.\r\n", rcc.sys / 1000000);
   printf("HCLK (AHB) at %d MHz.\r\n", rcc.ahb / 1000000);
   printf("PCLK1 (APB1) at %d MHz.\r\n", rcc.apb1 / 1000000);

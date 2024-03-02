@@ -27,9 +27,12 @@ static uint8_t ucMACAddress[6] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
 // unlikely to differ. Most packages don't have multiple pins multiplexed to 
 // this peripheral.
 static Smi smi = {
-  .pin_mdc = {GPIOA, 2},
-  .pin_mdio = {GPIOC, 1}
+  .pin_mdc = {GPIOC, 1},
+  .pin_mdio = {GPIOA, 2}
 };
+
+// MII pins. Only one of RMII or MII is required.
+static Mii mii = NULL;
 
 // RMII pins. Only one of RMII or MII is required; RMII is fewer pins.
 static Rmii rmii = {
@@ -37,7 +40,7 @@ static Rmii rmii = {
   .pin_refclk = {GPIOA, 1},
   .pin_rxd0 = {GPIOC, 4},
   .pin_rxd1 = {GPIOC, 5},
-  .pin_rxer = {GPIOG, 2},
+  .pin_rxer = {GPIOG, 2},  // Not always used.
   .pin_txen = {GPIOG, 11},
   .pin_txd0 = {GPIOG, 13},
   .pin_txd1 = {GPIOG, 14}
