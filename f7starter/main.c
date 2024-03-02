@@ -76,11 +76,7 @@ static void exampleTask(void *pvParameters) {
   // Initialise xNextWakeTime - this only needs to be done once.
   TickType_t xNextWakeTime = xTaskGetTickCount();
 
-  uint32_t random_value = 0;
-
   for( ;; ) {
-    RNG_GetRand32(&random_value);
-    printf("RNG->DR is %#0.8x\n", random_value);
     // Pauses this task until 1000 ms after its last wakeup.
     vTaskDelayUntil(&xNextWakeTime, 1000);
   }

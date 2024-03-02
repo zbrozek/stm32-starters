@@ -78,7 +78,7 @@
                 </option>
                 <option>
                     <name>OGChipSelectEditMenu</name>
-                    <state>STM32F407VG	ST STM32F407VG</state>
+                    <state>STM32F439ZI	ST STM32F439ZI</state>
                 </option>
                 <option>
                     <name>GenLowLevelInterface</name>
@@ -138,7 +138,7 @@
                 </option>
                 <option>
                     <name>GFPUDeviceSlave</name>
-                    <state>STM32F407VG	ST STM32F407VG</state>
+                    <state>STM32F439ZI	ST STM32F439ZI</state>
                 </option>
                 <option>
                     <name>FPU2</name>
@@ -225,7 +225,7 @@
                 <option>
                     <name>CCDefines</name>
                     <state>HSE_VALUE=8000000</state>
-                    <state>STM32F407xx</state>
+                    <state>STM32F429xx</state>
                     <state>USE_FULL_LL_DRIVER</state>
                 </option>
                 <option>
@@ -786,7 +786,7 @@
                 </option>
                 <option>
                     <name>IlinkIcfFile</name>
-                    <state>$TOOLKIT_DIR$\config\linker\ST\stm32f407xG.icf</state>
+                    <state>$TOOLKIT_DIR$\config\linker\ST\stm32f439xI.icf</state>
                 </option>
                 <option>
                     <name>IlinkIcfFileSlave</name>
@@ -2252,73 +2252,13 @@
             <name>$PROJ_DIR$\..\lib\freertos_plus_tcp-2022_12_01\FreeRTOS_UDP_IP.c</name>
         </file>
     </group>
-    <group>
-        <name>stm32f4_hal_lowlevel</name>
-        <excluded>
-            <configuration>Debug</configuration>
-        </excluded>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_adc.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_crc.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_dac.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_dma.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_dma2d.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_exti.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_gpio.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_i2c.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_lptim.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_pwr.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_rcc.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_rng.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_rtc.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_spi.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_tim.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_usart.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\lib\stm32f4_hal\stm32f4xx_ll_utils.c</name>
-        </file>
-    </group>
+    <file>
+        <name>$PROJ_DIR$\interrupts.c</name>
+    </file>
     <file>
         <name>$PROJ_DIR$\main.c</name>
     </file>
     <file>
-        <name>$PROJ_DIR$\startup_stm32f407xx.s</name>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\stm32f4xx_it.c</name>
-    </file>
-    <file>
-        <name>$PROJ_DIR$\system_stm32f4xx.c</name>
+        <name>$PROJ_DIR$\..\lib\stm32f4\startup_stm32f429xx.s</name>
     </file>
 </project>

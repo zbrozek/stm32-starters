@@ -307,7 +307,7 @@ void ETH_Start() {
 // the Ethernet peripheral.
 BaseType_t xNetworkInterfaceInitialise( void ) {
   // Enable the various digital buses to the PHY.
-  ETH_InitBus(&smi, NULL, &rmii);
+  ETH_InitBus(&smi, &mii, &rmii);
   PHY_Init();  // Link should be up when this function returns.
 
   // Configure the Ethernet and DMA peripherals.
