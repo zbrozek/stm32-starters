@@ -27,7 +27,7 @@ void Pin_Set(Pin *pin, bool value) {
 
 // Read the digital value of a pin.
 bool Pin_Read(Pin *pin) {
-  return (pin->port->IDR & pin->pin_num) ? true : false;
+  return (pin->port->IDR & (1 << pin->pin_num)) ? true : false;
 }
 
 // Configure a GPIO pin with the given parameters.
