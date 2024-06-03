@@ -45,7 +45,7 @@ void Pin_ConfigGpioPin(Pin *pin, PinMode mode, PinOutputType output_type,
   pin->port->OSPEEDR = (pin->port->OSPEEDR & ~(3U << (2 * pin->pin_num))) |
       (speed << (2 * pin->pin_num));
   pin->port->PUPDR = (pin->port->PUPDR & ~(3U << (2 * pin->pin_num))) |
-      (speed << (2 * pin->pin_num));
+      (pull << (2 * pin->pin_num));
 
   // The alternate function configuration spans two registers, so get fancy.
   if(pin->pin_num <= 7) {

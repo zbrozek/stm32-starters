@@ -2,8 +2,5 @@
 *.out
 *.map
 *.sim
-*.dep
-*.ewd
-*.ewt
 **/Debug/
 **/settings/
