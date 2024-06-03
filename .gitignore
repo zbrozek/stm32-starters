@@ -1,0 +1,6 @@
+*.bin
+*.out
+*.map
+*.sim
+**/Debug/
+**/settings/

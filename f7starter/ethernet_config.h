@@ -28,11 +28,29 @@ static uint8_t ucMACAddress[6] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
 // this peripheral.
 static Smi smi = {
   .pin_mdc = {GPIOC, 1},
-  .pin_mdio = {GPIOA, 2}
+  .pin_mdio = {GPIOA, 2},
+  .used = true,
 };
 
 // MII pins. Only one of RMII or MII is required.
-static Mii mii = NULL;
+static Mii mii = {
+  .pin_crs = NULL,  // Optional
+  .pin_col = NULL,  // Optional
+  .pin_rxdv = NULL,
+  .pin_rxclk = NULL,
+  .pin_rxd0 = NULL,
+  .pin_rxd1 = NULL,
+  .pin_rxd2 = NULL,
+  .pin_rxd3 = NULL,
+  .pin_rxer = NULL,  // Optional
+  .pin_txen = NULL,
+  .pin_txclk = NULL,
+  .pin_txd0 = NULL,
+  .pin_txd1 = NULL,
+  .pin_txd2 = NULL,
+  .pin_txd3 = NULL,
+  .used = false,
+};
 
 // RMII pins. Only one of RMII or MII is required; RMII is fewer pins.
 static Rmii rmii = {
@@ -43,7 +61,8 @@ static Rmii rmii = {
   .pin_rxer = {GPIOG, 2},  // Not always used.
   .pin_txen = {GPIOG, 11},
   .pin_txd0 = {GPIOG, 13},
-  .pin_txd1 = {GPIOG, 14}
+  .pin_txd1 = {GPIOG, 14},
+  .used = true,
 };
 
 #endif

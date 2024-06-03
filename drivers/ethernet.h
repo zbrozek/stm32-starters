@@ -16,6 +16,7 @@
 typedef  __packed struct SmiT {
   Pin pin_mdc;
   Pin pin_mdio;
+  bool used;
 } Smi;
 
 typedef  __packed struct MiiT {
@@ -34,6 +35,7 @@ typedef  __packed struct MiiT {
   Pin pin_txd1;
   Pin pin_txd2;
   Pin pin_txd3;
+  bool used;
 } Mii;
 
 typedef  __packed struct RmiiT {
@@ -45,6 +47,7 @@ typedef  __packed struct RmiiT {
   Pin pin_txen;
   Pin pin_txd0;
   Pin pin_txd1;
+  bool used;
 } Rmii;
 
 // The peripheral has some silly timing requirements around register writes.

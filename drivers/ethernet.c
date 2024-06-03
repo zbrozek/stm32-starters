@@ -56,7 +56,7 @@ void ETH_WriteReg(volatile uint32_t *reg, uint32_t value) {
 }
 
 bool ETH_InitSmiGpio(Smi *smi) {
-  if(smi == NULL) { return false; }
+  if(smi->used == false) { return false; }
 
   Pin_ConfigGpioPin(&(smi->pin_mdio), ePinModeAlt, ePinOutputOpenDrain,
       ePinSpeedMax, ePinPullUp, kEthAf);
@@ -87,7 +87,7 @@ bool ETH_InitSmiGpio(Smi *smi) {
 }
 
 bool ETH_InitMiiGpio(Mii *mii) {
-  if(mii == NULL) { return false; }
+  if(mii->used == false) { return false; }
 
   Pin *pins = (Pin*)mii;
 
@@ -102,7 +102,7 @@ bool ETH_InitMiiGpio(Mii *mii) {
 }
 
 bool ETH_InitRmiiGpio(Rmii *rmii) {
-  if(rmii == NULL) { return false; }
+  if(rmii->used == false) { return false; }
 
   Pin *pins = (Pin*)rmii;
 
@@ -145,21 +145,30 @@ bool ETH_SmiTransfer(uint16_t addr, uint16_t reg, uint16_t *data, bool write) {
 
 // Configure the GPIOs to the PHY.
 //   Only one of mii or rmii must be non-null.
+//   smi may be null.
 void ETH_InitBus(Smi *smi, Mii *mii, Rmii *rmii) {
+  // Put the Ethernet peripheral into reset.
+  RCC->AHB1RSTR |= RCC_AHB1RSTR_ETHMACRST;
+
+  // Enable the SYSCFG clock.
+  RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
+
+  // Choose MII or RMII, must be done while MAC is in reset and clock disabled.
+  SYSCFG->PMC &= ~(SYSCFG_PMC_MII_RMII_SEL);
+  SYSCFG->PMC |= rmii->used ? SYSCFG_PMC_MII_RMII_SEL : 0;
+
+  // Enable Ethernet GPIOs.
+  ETH_InitMiiGpio(mii);
+  ETH_InitRmiiGpio(rmii);
+
   // Enable Ethernet clocks.
   RCC->AHB1ENR |=
       RCC_AHB1ENR_ETHMACEN |
       RCC_AHB1ENR_ETHMACTXEN |
       RCC_AHB1ENR_ETHMACRXEN;
 
-  // Choose MII or RMII
-  RCC->APB2ENR |= RCC_APB2ENR_SYSCFGEN;
-  SYSCFG->PMC &= ~(SYSCFG_PMC_MII_RMII_SEL);
-  SYSCFG->PMC |= (rmii ? SYSCFG_PMC_MII_RMII_SEL : 0);
-
-  // Enable Ethernet GPIOs.
-  ETH_InitMiiGpio(mii);
-  ETH_InitRmiiGpio(rmii);
+  // Take the Ethernet peripheral out of reset.
+  RCC->AHB1RSTR &= ~(RCC_AHB1RSTR_ETHMACRST);
 
   // Enable the Ethernet interrupt.
   NVIC_SetPriority(ETH_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY);
