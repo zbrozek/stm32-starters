@@ -82,9 +82,9 @@ int main()
       ucDNSServerAddress,
       ucMACAddress );
 
-  // Set interrupt group priority to 4. Getting this wrong will cause hard
-  // faults at context switches.
-  NVIC_SetPriorityGrouping(0x300);
+  // Set interrupt group priority to 4 (argument is 3). Getting this wrong will
+  // cause hard faults at context switches.
+  NVIC_SetPriorityGrouping(3);
 
   // Start the scheduler. We should never return from here.
   vTaskStartScheduler();
