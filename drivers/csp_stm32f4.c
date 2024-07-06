@@ -6,62 +6,78 @@
 
 // Variables local to this source file
 volatile static int64_t CSP_grossCycleCount = 0;
+__no_init volatile uint32_t UniqueIdentifier[3] @ 0x1FFF7A10;
 
-// Registers and flags related to the Cortex-M4F cycle counter
-#define CYCCNT (*(volatile const uint32_t*)0xE0001004)
-#define DWT_CTRL (*(volatile uint32_t*)0xE0001000)
-#define DWT_CTRL_CYCEN 0x00000001
-#define SCB_DEMCR (*(volatile uint32_t*)0xE000EDFC)
-#define SCB_DEMCR_TRCEN 0x01000000
-
-// Call more often than 2^32 cycles to maintain a 64-bit cycle count
+// Call more often than 2^32 cycles to maintain a 64-bit cycle count.
 void CSP_UpdateGrossCycleCount(void) {
   static uint32_t lastCycleCount = 0;
-  uint32_t currentCycleCount = CYCCNT;
+  uint32_t currentCycleCount = DWT->CYCCNT;
 
-  if(currentCycleCount < lastCycleCount){
+  if(currentCycleCount < lastCycleCount) {
     CSP_grossCycleCount += ULONG_MAX;
   }
 
   lastCycleCount = currentCycleCount;
 }
 
-// Compute the total number of elapsed clock cycles since boot
+// Compute the total number of elapsed clock cycles since boot.
 int64_t CSP_TotalClockCycles(void) {
   // Define the order of volatile accesses by creating a temporary variable
   int64_t bigPart = CSP_grossCycleCount;
-  return bigPart + CYCCNT;
+  return bigPart + DWT->CYCCNT;
 }
 
-// Compute the number of milliseconds elapsed since boot
+// Compute the number of milliseconds elapsed since boot.
 int64_t CSP_TimeMillis(void) {
   return CSP_TotalClockCycles() * 1000 / SystemCoreClock;
 }
 
-// Return flash size in bytes
+// Return flash size in 32-bit words.
 int32_t CSP_GetFlashSize(void) {
   return ((*(volatile uint32_t*)0x1FFF7A22) & 0x0000FFFF) << 10;
 }
 
-// Return flash start address for this processor
+// Return flash start address for this processor.
 int32_t CSP_GetFlashStartAddr(void) {
   return 0x08000000;
 }
 
-// Reset the CPU
+// Reads 96-bit unique ID into caller-provided array.
+void CSP_GetUniqueIdentifier(uint32_t* Id) {
+  for(uint8_t i = 0; i < 3; i++) {
+    Id[i] = UniqueIdentifier[i];
+  }
+}
+
+// Convenience function to compare two unique identififers. Returns true if the
+// identifiers are the same.
+bool CSP_CompareUniqueIdentifier(uint32_t* IdA, uint32_t* IdB) {
+  // STM32F4 unique identifiers are 96 bits long. We will iterate over three
+  // uint32_t elements and do simple integer comparison and return false on
+  // any failure.
+  for(uint8_t i = 0; i < 3; i++) {
+    if(IdA[i] != IdB[i]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+// Reset the CPU.
 void CSP_Reboot(void) {
   NVIC_SystemReset();
 }
 
-// M3/M4 core configuration to turn on cycle counting since boot
+// Enable the debug core cycle counter.
 void CSP_EnableCycleCounter() {
-  // Trace enable, which in turn enables the DWT_CTRL register
-  SCB_DEMCR |= SCB_DEMCR_TRCEN;
-  // Start the CPU cycle counter (read with CYCCNT)
-  DWT_CTRL |= DWT_CTRL_CYCEN;
+  //DWT->LAR = 0xC5ACCE55;
+  CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
+  DWT->CYCCNT = 0;
+  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
 }
 
-// Print out some clock information
+// Print out some clock information.
 void CSP_PrintStartupInfo() {
   Rcc rcc;
   RCC_ReadClocks(&rcc);
