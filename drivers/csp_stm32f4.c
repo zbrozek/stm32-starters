@@ -4,9 +4,13 @@
 #include "stm32.h"
 #include "rcc.h"
 
+// Memory addresses in this file come from ST's RM0090 document, the reference
+// manual for the STM32F42x. Available at time of writing from ST at:
+//   https://www.st.com/resource/en/reference_manual/rm0090-stm32f405415-stm32f407417-stm32f427437-and-stm32f429439-advanced-armbased-32bit-mcus-stmicroelectronics.pdf
+
 // Variables local to this source file
 volatile static int64_t CSP_grossCycleCount = 0;
-__no_init volatile uint32_t UniqueIdentifier[3] @ 0x1FFF7A10;
+__no_init volatile uint32_t UniqueIdentifier[3] @ 0x1FFF7A10;  // RM0090 39.1
 
 // Call more often than 2^32 cycles to maintain a 64-bit cycle count.
 void CSP_UpdateGrossCycleCount(void) {
@@ -34,11 +38,13 @@ int64_t CSP_TimeMillis(void) {
 
 // Return flash size in 32-bit words.
 int32_t CSP_GetFlashSize(void) {
+  // RM0090 39.2 "Flash size"
   return ((*(volatile uint32_t*)0x1FFF7A22) & 0x0000FFFF) << 10;
 }
 
 // Return flash start address for this processor.
 int32_t CSP_GetFlashStartAddr(void) {
+  // Appears to be the same for all STM32 processors, regardless of series.
   return 0x08000000;
 }
 
@@ -71,7 +77,6 @@ void CSP_Reboot(void) {
 
 // Enable the debug core cycle counter.
 void CSP_EnableCycleCounter() {
-  //DWT->LAR = 0xC5ACCE55;
   CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
   DWT->CYCCNT = 0;
   DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;

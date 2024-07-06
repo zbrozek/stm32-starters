@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <string.h>
 
 // Call more often than 2^32 cycles to maintain a 64-bit cycle count.
 void CSP_UpdateGrossCycleCount(void);

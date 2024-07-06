@@ -4,9 +4,13 @@
 #include "stm32.h"
 #include "rcc.h"
 
+// Memory addresses in this file come from ST's RM0410 document, the reference
+// manual for the STM32F76x. Available at time of writing from ST at:
+//   https://www.st.com/resource/en/reference_manual/rm0410-stm32f76xxx-and-stm32f77xxx-advanced-armbased-32bit-mcus-stmicroelectronics.pdf
+
 // Variables local to this source file
 volatile static int64_t CSP_grossCycleCount = 0;
-__no_init volatile uint32_t UniqueIdentifier[3] @ 0x1FF0F420;
+__no_init volatile uint32_t UniqueIdentifier[3] @ 0x1FF0F420;  // RM0410 45.1
 
 // Call more often than 2^32 cycles to maintain a 64-bit cycle count.
 void CSP_UpdateGrossCycleCount(void) {
@@ -34,11 +38,13 @@ int64_t CSP_TimeMillis(void) {
 
 // Return flash size in 32-bit words.
 int32_t CSP_GetFlashSize(void) {
+  // RM0410 45.2 "Flash size"
   return ((*(volatile uint32_t*)0x1FF0F442) & 0x0000FFFF) << 10;
 }
 
 // Return flash start address for this processor.
 int32_t CSP_GetFlashStartAddr(void) {
+  // Appears to be the same for all STM32 processors, regardless of series.
   return 0x08000000;
 }
 
@@ -52,7 +58,7 @@ void CSP_GetUniqueIdentifier(uint32_t* Id) {
 // Convenience function to compare two unique identififers. Returns true if the
 // identifiers are the same.
 bool CSP_CompareUniqueIdentifier(uint32_t* IdA, uint32_t* IdB) {
-  // STM32F4 unique identifiers are 96 bits long. We will iterate over three
+  // STM32F7 unique identifiers are 96 bits long. We will iterate over three
   // uint32_t elements and do simple integer comparison and return false on
   // any failure.
   for(uint8_t i = 0; i < 3; i++) {
@@ -71,6 +77,9 @@ void CSP_Reboot(void) {
 
 // Enable the debug core cycle counter.
 void CSP_EnableCycleCounter() {
+  // Access codes comes from the ARM Architecture Reference Manual debug
+  // supplement, available at time of writing from:
+  //   https://developer.arm.com/documentation/ddi0379/a/Debug-Register-Reference/Management-registers/Lock-Access-Register--LAR-
   DWT->LAR = 0xC5ACCE55;
   CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
   DWT->CYCCNT = 0;
