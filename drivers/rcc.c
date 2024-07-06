@@ -63,7 +63,7 @@ static void RCC_EnableHse(bool bypass) {
 
 static void RCC_EnableHsi() {
   RCC->CR |= RCC_CR_HSION;  // Enable the HSI.
-  while(!(RCC->CR & RCC_CR_HSIRDY));  // Wsait for the HSI to become stable.
+  while(!(RCC->CR & RCC_CR_HSIRDY));  // Wait for the HSI to become stable.
 }
 
 static uint32_t RCC_FlashWaitLookup(uint32_t sysclk, uint32_t vcc_mv) {

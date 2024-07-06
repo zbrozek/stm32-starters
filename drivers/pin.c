@@ -40,7 +40,7 @@ void Pin_ConfigGpioPin(Pin *pin, PinMode mode, PinOutputType output_type,
   // Assign the simple GPIO parameters
   pin->port->MODER = (pin->port->MODER & ~(3U << (2 * pin->pin_num))) |
       (mode << (2 * pin->pin_num));
-  pin->port->OTYPER =(pin->port->OTYPER & ~(1U << pin->pin_num)) |
+  pin->port->OTYPER = (pin->port->OTYPER & ~(1U << pin->pin_num)) |
       (output_type << pin->pin_num);
   pin->port->OSPEEDR = (pin->port->OSPEEDR & ~(3U << (2 * pin->pin_num))) |
       (speed << (2 * pin->pin_num));
