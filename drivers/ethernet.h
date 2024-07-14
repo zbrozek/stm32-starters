@@ -10,7 +10,6 @@
 
 #include "FreeRTOS_UDP_IP.h"
 #include "FreeRTOS_Sockets.h"
-#include "FreeRTOS_IP_Private.h"
 #include "NetworkBufferManagement.h"
 
 typedef  __packed struct SmiT {
@@ -50,8 +49,8 @@ typedef  __packed struct RmiiT {
   bool used;
 } Rmii;
 
-// The peripheral has some silly timing requirements around register writes.
-void ETH_WriteReg(volatile uint32_t *reg, uint32_t value);
+// Use a hash of the CPU unique ID to generate a stable MAC address.
+void ETH_GetMacAddress(uint8_t* MacAddress);
 
 // PHY handling functions.
 bool ETH_SmiTransfer(uint16_t addr, uint16_t reg, uint16_t *data, bool write);

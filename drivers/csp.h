@@ -21,17 +21,23 @@ int32_t CSP_GetFlashSize(void);
 int32_t CSP_GetFlashStartAddr(void);
 
 // Reads 96-bit unique ID into caller-provided array.
-void CSP_GetUniqueIdentifier(uint32_t* Id);
+void CSP_GetUniqueIdentifier(uint32_t* id);
 
 // Convenience function to compare two unique identififers. Returns true if the
 // identifiers are the same.
-bool CSP_CompareUniqueIdentifier(uint32_t* IdA, uint32_t* IdB);
+bool CSP_CompareUniqueIdentifier(uint32_t* idA, uint32_t* idB);
 
 // Reset the CPU.
 void CSP_Reboot(void);
 
+// Delay for a specified duration; useful when timers are unavailable.
+void CSP_DelayMicros(uint32_t waitTimeMicros, uint32_t cyclesPerSecond);
+
 // Enable the debug core cycle counter.
 void CSP_EnableCycleCounter(void);
+
+// Compute CRC32 over an input buffer.
+uint32_t CSP_ComputeCrc32(void* input, uint32_t len);
 
 // Print out some clock information.
 void CSP_PrintStartupInfo();

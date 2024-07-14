@@ -49,20 +49,20 @@ int32_t CSP_GetFlashStartAddr(void) {
 }
 
 // Reads 96-bit unique ID into caller-provided array.
-void CSP_GetUniqueIdentifier(uint32_t* Id) {
+void CSP_GetUniqueIdentifier(uint32_t* id) {
   for(uint8_t i = 0; i < 3; i++) {
-    Id[i] = UniqueIdentifier[i];
+    id[i] = UniqueIdentifier[i];
   }
 }
 
 // Convenience function to compare two unique identififers. Returns true if the
 // identifiers are the same.
-bool CSP_CompareUniqueIdentifier(uint32_t* IdA, uint32_t* IdB) {
+bool CSP_CompareUniqueIdentifier(uint32_t* idA, uint32_t* idB) {
   // STM32F7 unique identifiers are 96 bits long. We will iterate over three
   // uint32_t elements and do simple integer comparison and return false on
   // any failure.
   for(uint8_t i = 0; i < 3; i++) {
-    if(IdA[i] != IdB[i]) {
+    if(idA[i] != idB[i]) {
       return false;
     }
   }
@@ -75,6 +75,15 @@ void CSP_Reboot(void) {
   NVIC_SystemReset();
 }
 
+// Delay for a specified duration; useful when timers are unavailable.
+void CSP_DelayMicros(uint32_t waitTimeMicros, uint32_t cyclesPerSecond) {
+  uint32_t currentCycleCount = DWT->CYCCNT;
+  uint32_t cyclesToWait = cyclesPerSecond / (1000 * 1000) * waitTimeMicros;
+  uint32_t waitUntilCycleCount = currentCycleCount + cyclesToWait;
+
+  while(DWT->CYCCNT < waitUntilCycleCount);
+}
+
 // Enable the debug core cycle counter.
 void CSP_EnableCycleCounter() {
   // Access codes comes from the ARM Architecture Reference Manual debug
@@ -84,6 +93,21 @@ void CSP_EnableCycleCounter() {
   CoreDebug->DEMCR |= CoreDebug_DEMCR_TRCENA_Msk;
   DWT->CYCCNT = 0;
   DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
+}
+
+// Compute CRC32 over an input buffer.
+uint32_t CSP_ComputeCrc32(void* input, uint32_t len) {
+  static bool firstRun = true;
+  if(firstRun) {
+    RCC->AHB1ENR |= RCC_AHB1ENR_CRCEN;
+    firstRun = false;
+  }
+
+  CRC->CR |= CRC_CR_RESET;
+  for(uint8_t i = 0; i < len; i++) {
+    CRC->DR = ((uint32_t*)input)[i];
+  }
+  return CRC->DR;
 }
 
 // Print out some clock information.

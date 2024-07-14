@@ -14,6 +14,7 @@
 
 #include "stm32.h"
 #include "rcc.h"
+#include "csp.h"
 #include "ethernet.h"
 #include "ethernet_config.h"
 #include <stdbool.h>
@@ -48,14 +49,14 @@ ETH_DmaDesc tx_dma_desc[ipconfigNUM_TX_DESCRIPTORS];
 ETH_DmaDesc rx_dma_desc[ipconfigNUM_RX_DESCRIPTORS];
 
 // The peripheral has some silly timing requirements around register writes.
-void ETH_WriteReg(volatile uint32_t *reg, uint32_t value) {
+void ETH_WriteReg(volatile uint32_t* reg, uint32_t value) {
   *reg = value;
   value = *reg;
   vTaskDelay(1);
   *reg = value;
 }
 
-bool ETH_InitSmiGpio(Smi *smi) {
+bool ETH_InitSmiGpio(Smi* smi) {
   if(smi->used == false) { return false; }
 
   Pin_ConfigGpioPin(&(smi->pin_mdio), ePinModeAlt, ePinOutputOpenDrain,
@@ -86,7 +87,7 @@ bool ETH_InitSmiGpio(Smi *smi) {
   return true;
 }
 
-bool ETH_InitMiiGpio(Mii *mii) {
+bool ETH_InitMiiGpio(Mii* mii) {
   if(mii->used == false) { return false; }
 
   Pin *pins = (Pin*)mii;
@@ -101,7 +102,7 @@ bool ETH_InitMiiGpio(Mii *mii) {
   return true;
 }
 
-bool ETH_InitRmiiGpio(Rmii *rmii) {
+bool ETH_InitRmiiGpio(Rmii* rmii) {
   if(rmii->used == false) { return false; }
 
   Pin *pins = (Pin*)rmii;
@@ -117,7 +118,7 @@ bool ETH_InitRmiiGpio(Rmii *rmii) {
 }
 
 // Transfers one register from an SMI-connected slave.
-bool ETH_SmiTransfer(uint16_t addr, uint16_t reg, uint16_t *data, bool write) {
+bool ETH_SmiTransfer(uint16_t addr, uint16_t reg, uint16_t* data, bool write) {
   // Bail if the SMI bus isn't idle.
   if(ETH->MACMIIAR & ETH_MACMIIAR_MB) {
     return false;
@@ -146,7 +147,7 @@ bool ETH_SmiTransfer(uint16_t addr, uint16_t reg, uint16_t *data, bool write) {
 // Configure the GPIOs to the PHY.
 //   Only one of mii or rmii must be non-null.
 //   smi may be null.
-void ETH_InitBus(Smi *smi, Mii *mii, Rmii *rmii) {
+void ETH_InitBus(Smi* smi, Mii* mii, Rmii* rmii) {
   // Put the Ethernet peripheral into reset.
   RCC->AHB1RSTR |= RCC_AHB1RSTR_ETHMACRST;
 
@@ -220,22 +221,41 @@ void ETH_DmaInit(void) {
   ETH_WriteReg(&ETH->DMAIER, dmaier);
 }
 
+// Use a hash of the CPU unique ID to generate a stable MAC address.
+void ETH_GetMacAddress(uint8_t* MacAddress) {
+  uint32_t id[3];
+  CSP_GetUniqueIdentifier(id);
+
+  // Use CRC32 twice as a crummy hash of the 96-bit ID, which we'll cut down.
+  uint32_t crc[2] = {
+    CSP_ComputeCrc32(&id[0], 3),
+    CSP_ComputeCrc32(&id[1], 2)
+  };
+
+  // Save 48 bits of the hashes to the provided destination.
+  memcpy(MacAddress, crc, 6);
+  MacAddress[0] |= 0x2;  // Set 'locally-administered' bit.
+  MacAddress[0] &= ~0x1; // Clear 'multicast' bit.
+}
+
 // Take the (defined in ethernet_config.h) MAC address and inform the hardware.
-void ETH_SetMacAddr(uint8_t ucMACAddress[6]) {
+void ETH_SetMacAddr(void) {
+  uint8_t MacAddress[6];
+  ETH_GetMacAddress(MacAddress);
   uint32_t maca0hr = ETH->MACA0HR & 0xFFFF0000;
-  maca0hr |= (ucMACAddress[5] << 8) | (ucMACAddress[4]);
+  maca0hr |= (MacAddress[5] << 8) | (MacAddress[4]);
   ETH_WriteReg(&ETH->MACA0HR, maca0hr);
   uint32_t maca0lr =
-      (ucMACAddress[3] << 24) |
-      (ucMACAddress[2] << 16) |
-      (ucMACAddress[1] << 8) |
-      (ucMACAddress[0]);
+      (MacAddress[3] << 24) |
+      (MacAddress[2] << 16) |
+      (MacAddress[1] << 8) |
+      (MacAddress[0]);
   ETH_WriteReg(&ETH->MACA0LR, maca0lr);
 }
 
 // Find the next CPU-owned descriptor. Doesn't care about RX vs TX.
 //   head - points to the first descriptor
-ETH_DmaDesc *ETH_GetNextDesc(ETH_DmaDesc *head,
+ETH_DmaDesc* ETH_GetNextDesc(ETH_DmaDesc* head,
     int *start, int len, bool check_owned) {
   int end = *start + len - 1; // Only cycle through once - don't return start.
   int current;
@@ -255,7 +275,7 @@ ETH_DmaDesc *ETH_GetNextDesc(ETH_DmaDesc *head,
 
 // Wire up the TX DMA descriptors, but we don't actually point to any buffers.
 // Those are allocated at transmission.
-void ETH_DmaDescTxInit(ETH_DmaDesc *head, int len) {
+void ETH_DmaDescTxInit(ETH_DmaDesc* head, int len) {
   // Inform the hardware where to look for descriptors.
   ETH->DMATDLAR = (uint32_t)head;  // Start of descriptor list register.
 
@@ -275,7 +295,7 @@ void ETH_DmaDescTxInit(ETH_DmaDesc *head, int len) {
 }
 
 // Wire up the RX descriptors. Except we actually allocate buffers.
-void ETH_DmaDescRxInit(ETH_DmaDesc *head, int len) {
+void ETH_DmaDescRxInit(ETH_DmaDesc* head, int len) {
   static size_t frame_len = FRAME_PADDED;
 
   // Inform the hardware where to look for descriptors.
@@ -314,7 +334,7 @@ void ETH_Start() {
 
 // FreeRTOS calls this from a thread (so it's OK if this blocks) to set up the
 // the Ethernet peripheral.
-BaseType_t xNetworkInterfaceInitialise( void ) {
+BaseType_t xNetworkInterfaceInitialise(void) {
   // Enable the various digital buses to the PHY.
   ETH_InitBus(&smi, &mii, &rmii);
   PHY_Init();  // Link should be up when this function returns.
@@ -322,7 +342,7 @@ BaseType_t xNetworkInterfaceInitialise( void ) {
   // Configure the Ethernet and DMA peripherals.
   ETH_MacInit();
   ETH_DmaInit();
-  ETH_SetMacAddr(ucMACAddress);
+  ETH_SetMacAddr();
   ETH_DmaDescTxInit(tx_dma_desc, ipconfigNUM_TX_DESCRIPTORS);
   ETH_DmaDescRxInit(rx_dma_desc, ipconfigNUM_RX_DESCRIPTORS);
 
@@ -353,7 +373,7 @@ BaseType_t xNetworkInterfaceInitialise( void ) {
 // sets some flags to hand it back to the DMA for transmission. Note that the
 // pucEthernetBuffer gets released back to the IP stack in the TX ISR.
 BaseType_t xNetworkInterfaceOutput(
-    NetworkBufferDescriptor_t * const pxDescriptor,
+    NetworkBufferDescriptor_t* const pxDescriptor,
     BaseType_t xReleaseAfterSend ) {
   static int next_tx = 0;
 
@@ -403,7 +423,7 @@ BaseType_t xNetworkInterfaceOutput(
 // Ethernet interrupt, no followup interrupt will fire. It is therefore
 // important to process all available packets each time this task receives a
 // notification.
-static void rxTask(void *pvParameters) {
+static void rxTask(void* pvParameters) {
   ETH_DmaDesc *rx_desc;
   int next_idx = 0;
   uint8_t *pucTemp;
@@ -463,7 +483,7 @@ static void rxTask(void *pvParameters) {
 
 // This task gets notifications from the transmit interrupt. It releases network
 // buffers associated with the now-free descriptors.
-static void txTask(void *pvParameters) {
+static void txTask(void* pvParameters) {
   static int next_tx = 0;
   ETH_DmaDesc *tx_desc;
 
