@@ -80,11 +80,29 @@ int main( void )
       tskIDLE_PRIORITY,          // The priority assigned to the task.
       NULL );                    // The task handle is not required, so NULL is passed.
 
+  // Initialize the IP stack. PHY_Init() called from ethernet.c
+  // Board IP: 192.168.0.30
+  uint8_t MacAddress[6];
+  ETH_GetMacAddress(MacAddress);
   BaseType_t stack_initialized = FreeRTOS_IPInit( ucIPAddress,
       ucNetMask,
       ucGatewayAddress,
       ucDNSServerAddress,
-      ucMACAddress );
+      MacAddress );
+
+  // Print out the MAC address.
+  printf("MAC address is ");
+  for(uint8_t i = 0; i < 5; i++) {
+    printf("%02X:", MacAddress[i]);
+  }
+  printf("%02X\n", MacAddress[5]);
+
+  // Print out the IP address.
+  printf("IP address is ");
+  for(uint8_t i = 0; i < 3; i++) {
+    printf("%d.", ucIPAddress[i]);
+  }
+  printf("%d\n", ucIPAddress[3]);
 
   // Set interrupt group priority to 4 (argument is 3). Getting this wrong will
   // cause hard faults at context switches.

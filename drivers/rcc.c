@@ -55,15 +55,38 @@ static const uint8_t kWaitStateLookup[4][kWaitCycles] = {
 };
 #endif
 
-static void RCC_EnableHse(bool bypass) {
+// Enables the high-speed external (HSE) clock.
+// When bypass is true, the inverter oscillator driver is disabled. This is
+// used with external oscillators. Set this to false when using a crystal.
+void RCC_EnableHse(bool bypass) {
   RCC->CR |= (bypass ? RCC_CR_HSEBYP : 0);  // No crystal; enable HSE bypass.
   RCC->CR |= RCC_CR_HSEON;  // Enable the HSE.
   while(!(RCC->CR & RCC_CR_HSERDY));  // Wait for the HSE to become stable.
 }
 
-static void RCC_EnableHsi() {
+// Disables the high-speed external (HSE) clock.
+void RCC_DisableHse() {
+  RCC->CR &= ~RCC_CR_HSEBYP;  // Disable HSE bypass.
+  RCC->CR &= ~RCC_CR_HSEON;  // Disable the HSE.
+  // ST busy-waits here. We omit the wait for want of a purpose.
+}
+
+// Enables the high-speed internal (HSI) RC oscillator clock.
+void RCC_EnableHsi() {
   RCC->CR |= RCC_CR_HSION;  // Enable the HSI.
   while(!(RCC->CR & RCC_CR_HSIRDY));  // Wait for the HSI to become stable.
+}
+
+// Disables the high-speed internal (HSI) RC oscillator clock.
+void RCC_DisableHsi() {
+  RCC->CR &= ~RCC_CR_HSION;  // Disable the HSI.
+  // ST busy-waits here. We omit the wait for want of a purpose.
+}
+
+// Disables the phase-locked loop (PLL) clock.
+void RCC_DisablePll() {
+  RCC->CR &= ~RCC_CR_PLLON;  // Disable the PLL.
+  // ST busy-waits here. We omit the wait for want of a purpose.
 }
 
 static uint32_t RCC_FlashWaitLookup(uint32_t sysclk, uint32_t vcc_mv) {

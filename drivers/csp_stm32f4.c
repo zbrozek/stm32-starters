@@ -75,18 +75,91 @@ void CSP_Reboot(void) {
   NVIC_SystemReset();
 }
 
+// Jump to the built-in system bootloader from anywhere. Useful for triggering
+// the bootloader without needing to open boxes and press buttons.
 void CSP_JumpToBootloader(void) {
   Rcc rcc;
   RCC_ReadClocks(&rcc);
 
-  __disable_irq();
-  SysTick->CTRL = 0;
+  // See AN2606, "Bootloader configuration" tables for further information:
+  //   https://www.st.com/resource/en/application_note/cd00167594-stm32-microcontroller-system-memory-boot-mode-stmicroelectronics.pdf
+  const uint32_t SysBootAddr = 0x1FFF0000;
 
-  // Switch to high-speed internal oscillator
+  // This code is going to fundamentally alter MCU configuration and code
+  // execution. We need to disable interrupts so that some other code that isn't
+  // prepared for these changes can't accidentally take over execution.
+  __disable_irq();
+  
+  // The system bootloader assumes that the chip is in its reset configuration,
+  // and that means running on its "high speed internal" RC oscillator. It's not
+  // clear that we actually need to turn off the other clocks, but it seemed
+  // good to tidy up a bit after ourselves.
   rcc.src = eRccSrcHsi;
   rcc.hse_bypass = false;
   rcc.pll.src = eRccSrcHsi;
-  SystemCoreClock = RCC_ClockConfig(&rcc, 8000000);
+  SystemCoreClock = RCC_ClockConfig(&rcc, 16000000);
+  RCC_DisableHse();
+  RCC_DisablePll();
+
+  // Clear RCC interrupt flags. Not exactly clear why (or even if) we need to do
+  // this, but it was in ST example code. It's believable that if there are any
+  // leftover interrupts post-jump that the bootloader would erroneously jump
+  // to a handler.
+  RCC->CIR |= (
+    RCC_CIR_CSSC |
+    RCC_CIR_PLLSAIRDYC |
+    RCC_CIR_PLLI2SRDYC |
+    RCC_CIR_PLLRDYC |
+    RCC_CIR_HSERDYC |
+    RCC_CIR_HSIRDYC |
+    RCC_CIR_LSERDYC |
+    RCC_CIR_LSIRDYC |
+    RCC_CIR_HSERDYC
+  );
+
+  // Set AHB and APB clocks to reset state. The system bootloader configures
+  // clocks and peripherals and we don't want any bits to be unexpectedly
+  // different from what it expects at startup.
+  RCC->AHB1ENR = 0x00100000;
+  RCC->AHB2ENR = 0x00000000;
+  RCC->AHB3ENR = 0x00000000;
+  RCC->APB1ENR = 0x00000000;
+  RCC->APB2ENR = 0x00000000;
+  
+  // Disable SysTick and return it to default values. ST code routinely uses the
+  // SysTick for timeouts and configures it at start-up. We don't want to
+  // accidentally fire the SysTick before the system bootloader setup code is
+  // ready to handle them.
+  SysTick->CTRL = 0;
+  SysTick->LOAD = 0;
+  SysTick->VAL = 0;
+
+  // Not actually sure that we need to do either of these.
+  RCC->CR &= ~RCC_CR_CSSON;  // Disable clock security switching.
+  RCC->CSR |= RCC_CSR_RMVF;  // Clear reset flags.
+ 
+  // Clear interrupt enable and pending registers. We don't want to accidentally
+  // trigger not-yet-ready interrupt handlers post-jump.
+  for(uint8_t i = 0; i < 5; i++) {
+    NVIC->ICER[i]=0xFFFFFFFF;
+    NVIC->ICPR[i]=0xFFFFFFFF;
+  }
+
+  // See RM0090 section 9.2.1; we are setting up the memory map as if we had
+  // booted with BOOT0 strapped low, which goes to the system bootloader.
+  SYSCFG->MEMRMP &= ~(SYSCFG_MEMRMP_MEM_MODE);  // Clear memory mode bits.
+  SYSCFG->MEMRMP |= SYSCFG_MEMRMP_MEM_MODE_0;  // Select system flash mode.
+  
+  // IRQs are enabled at reset, and the system bootloader does not enable them
+  // internally. If they aren't re-enabled then USB enumeration is started and
+  // times out eventually.
+  __enable_irq();
+
+  // With the execution context set up, now we can jump to the bootloader.
+  void (*SysMemBootJump)(void);
+  SysMemBootJump = (void (*)(void)) (*((uint32_t *) ((SysBootAddr + 4))));
+  __set_MSP(*(uint32_t *)SysBootAddr);
+  SysMemBootJump();  // Perform the jump.
 }
 
 // Delay for a specified duration; useful when timers are unavailable.
@@ -129,5 +202,5 @@ void CSP_PrintStartupInfo() {
   printf("SYSCLK at %d MHz.\r\n", rcc.sys / 1000000);
   printf("HCLK (AHB) at %d MHz.\r\n", rcc.ahb / 1000000);
   printf("PCLK1 (APB1) at %d MHz.\r\n", rcc.apb1 / 1000000);
-  printf("PCLK2 (APB2) at %d MHz.\r\n\r\n", rcc.apb2 / 1000000);
+  printf("PCLK2 (APB2) at %d MHz.\r\n", rcc.apb2 / 1000000);
 }

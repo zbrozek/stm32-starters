@@ -30,6 +30,10 @@ bool CSP_CompareUniqueIdentifier(uint32_t* idA, uint32_t* idB);
 // Reset the CPU.
 void CSP_Reboot(void);
 
+// Jump to the built-in system bootloader from anywhere. Useful for triggering
+// the bootloader without needing to open boxes and press buttons.
+void CSP_JumpToBootloader(void);
+
 // Delay for a specified duration; useful when timers are unavailable.
 void CSP_DelayMicros(uint32_t waitTimeMicros, uint32_t cyclesPerSecond);
 

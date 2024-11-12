@@ -18,11 +18,6 @@ static const uint8_t ucGatewayAddress[4] = { 192, 168, 0, 1};
 // DNS server to use. May be local or on the open internet.
 static const uint8_t ucDNSServerAddress[4] = {8, 8, 8, 8};  // Google.
 
-// The MAC address array is not declared const as the MAC address will
-// normally be read from an EEPROM and not hard coded (in real deployed
-// applications).
-static uint8_t ucMACAddress[6] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
-
 // SMI / MDIO bus pins. Technically a per-board configuration, but in practice
 // unlikely to differ. Most packages don't have multiple pins multiplexed to 
 // this peripheral.

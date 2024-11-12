@@ -31,6 +31,23 @@ typedef struct RccT {
   bool hse_bypass;
 } Rcc;
 
+// Enables the high-speed external (HSE) clock.
+// When bypass is true, the inverter oscillator driver is disabled. This is
+// used with external oscillators. Set this to false when using a crystal.
+void RCC_EnableHse(bool bypass);
+
+// Disables the high-speed external (HSE) clock.
+void RCC_DisableHse();
+
+// Enables the high-speed internal (HSI) RC oscillator clock.
+void RCC_EnableHsi();
+
+// Disables the high-speed internal (HSI) RC oscillator clock.
+void RCC_DisableHsi();
+
+// Disables the phase-locked loop (PLL) clock.
+void RCC_DisablePll();
+
 // Populates *rcc with system clock information computed by reading registers.
 void RCC_ReadClocks(Rcc *rcc);
 
