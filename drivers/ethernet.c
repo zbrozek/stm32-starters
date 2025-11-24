@@ -8,9 +8,6 @@
 
 // TODO(zbrozek): Add nice constant definitions for standard SMI registers.
 // TODO(zbrozek): Make the DMA descriptors a bitfield or a union.
-// TODO(zbrozek): Make sure that all handoffs to/from DMA are cache-coherent.
-//   SCB_InvalidateDCache_by_Addr
-//   SCB_CleanDCache_by_Addr
 
 #include "stm32.h"
 #include "rcc.h"
@@ -20,9 +17,17 @@
 #include <stdbool.h>
 #include <stdio.h>
 
-// Pad the Ethernet frame up to a 4-byte boundary.
+// Pad the Ethernet frame up to a 32-byte boundary on CPUs with data caching,
+// and leave it at 4 bytes for other CPUs to spending excess memory.
+#if defined(STM32F7) || defined(STM32H5)
+#define FRAME_PADDED ((ipTOTAL_ETHERNET_FRAME_SIZE + 31) & ~0x1FU)
+#else
 #define FRAME_PADDED ((ipTOTAL_ETHERNET_FRAME_SIZE + 3) & ~0x03U)
+#endif
 
+// This DMA descriptor structure is enforced by hardware because the DMA engine
+// reads and writes to it. Note that it is also exactly 32 words and thus fits
+// precisely in a single cache line of STM32 devices which include data caches.
 typedef struct ETH_DmaDescT {
   uint32_t Status;
   uint32_t ControlBufferSize;
@@ -44,11 +49,19 @@ const uint32_t kDmaomrClearMask = ((uint32_t)0xF8DE3F23U);
 // Globals
 TaskHandle_t rx_task_handle, tx_task_handle;
 
+// STM32 cache lines are 32 words and we want descriptors to be aligned to cache
+// lines so that we can invalidate or clean them in one operation.
+#if defined(STM32F7) || defined(STM32H5)
+#pragma data_alignment=32
+#else
 #pragma data_alignment=4
+#endif
 ETH_DmaDesc tx_dma_desc[ipconfigNUM_TX_DESCRIPTORS];
 ETH_DmaDesc rx_dma_desc[ipconfigNUM_RX_DESCRIPTORS];
+#pragma data_alignment=4
 
-// The peripheral has some silly timing requirements around register writes.
+// Due to the Ethernet peripheral running in a separate clock domain from the
+// CPU core, there are some unfortunate requirements around register writes.
 void ETH_WriteReg(volatile uint32_t* reg, uint32_t value) {
   *reg = value;
   value = *reg;
@@ -136,7 +149,7 @@ bool ETH_SmiTransfer(uint16_t addr, uint16_t reg, uint16_t* data, bool write) {
   // Busy wait until the transaction completes.
   while(ETH->MACMIIAR & ETH_MACMIIAR_MB);
 
-  // Send back the data to the caller.
+  // Send the data back to the caller.
   if(!write) {
     *data = ETH->MACMIIDR;
   }
@@ -261,6 +274,11 @@ ETH_DmaDesc* ETH_GetNextDesc(ETH_DmaDesc* head,
   int current;
   ETH_DmaDesc *desc;
 
+  #if defined(STM32F7) || defined(STM32H5)
+  // Invalidate the cache so we ensure descriptor ownership is up-to-date.
+  SCB_InvalidateDCache_by_Addr(head, len * sizeof(ETH_DmaDesc));
+  #endif
+
   // Iterate over descriptors. If desired, return only those owned by the CPU.
   for(int a = *start; a < end; a++) {
     current = a % len;
@@ -292,6 +310,11 @@ void ETH_DmaDescTxInit(ETH_DmaDesc* head, int len) {
     current->Buffer2NextDescAddr = next;
     current = next;
   } while(next != head);
+
+  #if defined(STM32F7) || defined(STM32H5)
+  // Clean the data cache for the lines occupied by the descriptors.
+  SCB_CleanDCache_by_Addr(head, len * sizeof(ETH_DmaDesc));
+  #endif
 }
 
 // Wire up the RX descriptors. Except we actually allocate buffers.
@@ -317,6 +340,11 @@ void ETH_DmaDescRxInit(ETH_DmaDesc* head, int len) {
     current->Status = (1U << 31);  // Set ownership to DMA peripheral.
     current = next;
   } while(next != head);
+
+  #if defined(STM32F7) || defined(STM32H5)
+  // Clean the data cache for the lines occupied by the descriptors.
+  SCB_CleanDCache_by_Addr(head, len * sizeof(ETH_DmaDesc));
+  #endif
 }
 
 void ETH_Start() {
@@ -391,6 +419,12 @@ BaseType_t xNetworkInterfaceOutput(
     pxPacket->xICMPPacket.xICMPHeader.usChecksum = (uint16_t)0u;
   }
 
+  #if defined(STM32F7) || defined(STM32H5)
+  // Clean the data cache for the lines occupied by the data buffer.
+  SCB_CleanDCache_by_Addr(pxDescriptor->pucEthernetBuffer, \
+    pxDescriptor->xDataLength);
+  #endif
+
   // Populate the fresh descriptor.
   desc->Buffer1Addr = pxDescriptor->pucEthernetBuffer;
   desc->ControlBufferSize = (pxDescriptor->xDataLength & 0x1FFF);
@@ -401,6 +435,11 @@ BaseType_t xNetworkInterfaceOutput(
       (1U << 28) |  // Descriptor contains the last segment of a packet.
       (3U << 22) |  // Enable full hardware checksumming.
       (1U << 20);  // Second address chained.
+
+  #if defined(STM32F7) || defined(STM32H5)
+  // Clean the data cache for the lines occupied by the descriptor.
+  SCB_CleanDCache_by_Addr(desc, sizeof(ETH_DmaDesc));
+  #endif
 
   // Check to see if the peripheral is suspended; kick it if necessary.
   if((ETH->DMASR & ETH_DMASR_TPS) == ETH_DMASR_TPS_Suspended) {
@@ -421,8 +460,7 @@ BaseType_t xNetworkInterfaceOutput(
 // This task gets notifications from the receive interrupt. Note that multiple
 // RX interrupts are not nested. If a packet is received while servicing the
 // Ethernet interrupt, no followup interrupt will fire. It is therefore
-// important to process all available packets each time this task receives a
-// notification.
+// important to process all available descriptors each time.
 static void rxTask(void* pvParameters) {
   ETH_DmaDesc *rx_desc;
   int next_idx = 0;
@@ -440,6 +478,11 @@ static void rxTask(void* pvParameters) {
       // Get a new buffer that's big enough to receive another packet. It'll be
       // released when it's processed by the IP stack.
       pxDescriptor = pxGetNetworkBufferWithDescriptor(FRAME_PADDED, 0);
+
+      #if defined(STM32F7) || defined(STM32H5)
+      // Invalidate the data cache for the lines occupied by the buffer.
+      SCB_InvalidateDCache_by_Addr(rx_desc->Buffer1Addr, FRAME_PADDED);
+      #endif
 
       // Make sure we're not trying to write to a buffer we didn't get. Hitting
       // this drops the packet and releases the buffer.

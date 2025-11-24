@@ -58,10 +58,22 @@ static void exampleTask(void *pvParameters)
 // preemptive scheduler. Should never return.
 int main( void )
 {
-  // Enable various processor speed-ups - dangerous.
-  /*FLASH->ACR |= FLASH_ACR_ARTEN;
+  // Enable the ART accelerator, which reduces instruction latency to one cycle
+  // when executing from FLASH.
+  FLASH->ACR |= FLASH_ACR_ARTEN;
+  FLASH->ACR |= FLASH_ACR_PRFTEN;
+
+  // Enable the CPU data cache, noticeably speeding up loops with fast accesses.
+  // Note that this is somewhat dangerous, particularly when sharing data using
+  // the DMA peripheral. Either clean and invalidate the shared regions
+  // manually or configure the MPU.
+  SCB_EnableDCache();
+
+  // Enable the CPU instruction cache, speeding up execution. These projects do
+  // not implement self-modifying code and do not write to flash memory and so
+  // it is safe to enable that cache. If writes to instruction memory are
+  // introduced at some point in the future, take care to manage the i-cache.
   SCB_EnableICache();
-  SCB_EnableDCache();*/
 
   Rcc rcc;
   rcc.src = eRccSrcPll;
