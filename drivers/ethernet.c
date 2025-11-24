@@ -2,13 +2,6 @@
 // FreeRTOS+UDP. Check out the documentation at:
 // http://www.freertos.org/FreeRTOS-Plus/FreeRTOS_Plus_TCP/Embedded_Ethernet_Porting.html
 
-// ************************************
-// #### DO NOT TURN ON CACHES YET! ####
-// ************************************
-
-// TODO(zbrozek): Add nice constant definitions for standard SMI registers.
-// TODO(zbrozek): Make the DMA descriptors a bitfield or a union.
-
 #include "stm32.h"
 #include "rcc.h"
 #include "csp.h"
