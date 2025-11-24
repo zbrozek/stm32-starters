@@ -10486,6 +10486,15 @@ typedef struct
 /*                                                                            */
 /******************************************************************************/
 /********************  Bit definition for RCC_CR register  ********************/
+
+#if !defined  (HSI_VALUE)   
+  #define HSI_VALUE    ((uint32_t)16000000) /*!< Value of the Internal oscillator in Hz*/
+#endif /* HSI_VALUE */   
+
+#if !defined  (HSE_STARTUP_TIMEOUT) 
+  #define HSE_STARTUP_TIMEOUT    ((uint16_t)0x05000)   /*!< Time out for HSE start up */
+#endif /* HSE_STARTUP_TIMEOUT */   
+
 #define RCC_CR_HSION_Pos                   (0U)                                
 #define RCC_CR_HSION_Msk                   (0x1UL << RCC_CR_HSION_Pos)          /*!< 0x00000001 */
 #define RCC_CR_HSION                       RCC_CR_HSION_Msk                    
@@ -11461,6 +11470,8 @@ typedef struct
 #define RCC_BDCR_RTCSEL                    RCC_BDCR_RTCSEL_Msk                 
 #define RCC_BDCR_RTCSEL_0                  (0x1UL << RCC_BDCR_RTCSEL_Pos)       /*!< 0x00000100 */
 #define RCC_BDCR_RTCSEL_1                  (0x2UL << RCC_BDCR_RTCSEL_Pos)       /*!< 0x00000200 */
+
+#define  RCC_BDCR_LSEMOD                     ((uint32_t)0x00000008)
 
 #define RCC_BDCR_RTCEN_Pos                 (15U)                               
 #define RCC_BDCR_RTCEN_Msk                 (0x1UL << RCC_BDCR_RTCEN_Pos)        /*!< 0x00008000 */
