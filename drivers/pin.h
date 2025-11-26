@@ -1,9 +1,10 @@
 #ifndef PIN_H
 #define PIN_H
 
-#include "stm32.h"
 #include <stdbool.h>
 #include <stdint.h>
+
+#include "stm32.h"
 
 typedef enum PinModeT {
   ePinModeInput = 0x00,
@@ -34,32 +35,30 @@ typedef enum PinPullT {
 // Holding struct for ongoing access.
 // port needs to be something like GPIOA.
 // pin needs to be a number from 0 to 15.
-typedef  __packed struct PinT {
-   GPIO_TypeDef *port;
-   uint32_t pin_num;
+typedef __packed struct PinT {
+  GPIO_TypeDef* port;
+  uint32_t pin_num;
 } Pin;
 
 // Atomic set pin high.
-inline void Pin_SetHigh(Pin *pin) {
-  pin->port->BSRR = (0x1U << pin->pin_num);
-}
+inline void Pin_SetHigh(Pin* pin) { pin->port->BSRR = (0x1U << pin->pin_num); }
 
 // Atomic set pin low.
-inline void Pin_SetLow(Pin *pin) {
+inline void Pin_SetLow(Pin* pin) {
   pin->port->BSRR = (0x1U << pin->pin_num) << 16;
 }
 
 // Non-atomic toggle pin.
-void Pin_Toggle(Pin *pin);
+void Pin_Toggle(Pin* pin);
 
 // Non-atomic set pin to value.
-void Pin_Set(Pin *pin, bool value);
+void Pin_Set(Pin* pin, bool value);
 
 // Read the digital value of a pin.
-bool Pin_Read(Pin *pin);
+bool Pin_Read(Pin* pin);
 
 // Configure a GPIO pin with the given parameters.
-void Pin_ConfigGpioPin(Pin *pin, PinMode mode, PinOutputType output_type,
-    PinSpeed speed, PinPull pull, uint32_t af);
+void Pin_ConfigGpioPin(Pin* pin, PinMode mode, PinOutputType output_type,
+                       PinSpeed speed, PinPull pull, uint32_t af);
 
 #endif
