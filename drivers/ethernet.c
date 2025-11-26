@@ -10,6 +10,8 @@
 #include <stdbool.h>
 #include <stdio.h>
 
+// TODO(zbrozek) - consider 10 mbps and half-duplex links
+
 // Pad the Ethernet frame up to a 32-byte boundary on CPUs with data caching,
 // and leave it at 4 bytes for other CPUs to spending excess memory.
 #if defined(STM32F7) || defined(STM32H5)
@@ -51,19 +53,16 @@ TaskHandle_t rx_task_handle, tx_task_handle;
 #endif
 ETH_DmaDesc tx_dma_desc[ipconfigNUM_TX_DESCRIPTORS];
 ETH_DmaDesc rx_dma_desc[ipconfigNUM_RX_DESCRIPTORS];
-#pragma data_alignment=4
 
-// Due to the Ethernet peripheral running in a separate clock domain from the
-// CPU core, there are some unfortunate requirements around register writes.
+// The Ethernet peripheral is split across two clock domains; use a volatile
+// read to ensure that the peripheral has responded and the write is complete.
 void ETH_WriteReg(volatile uint32_t* reg, uint32_t value) {
   *reg = value;
-  value = *reg;
-  vTaskDelay(1);
-  *reg = value;
+  volatile uint32_t read_delay_storage = *reg;
 }
 
 bool ETH_InitSmiGpio(Smi* smi) {
-  if(smi->used == false) { return false; }
+  if(!smi || smi->used == false) { return false; }
 
   Pin_ConfigGpioPin(&(smi->pin_mdio), ePinModeAlt, ePinOutputOpenDrain,
       ePinSpeedMax, ePinPullUp, kEthAf);
@@ -99,7 +98,7 @@ bool ETH_InitMiiGpio(Mii* mii) {
   Pin *pins = (Pin*)mii;
 
   for(int a = 0; a < 15; a++) {
-    if(&pins[a]) {
+    if(pins[a].port != NULL) {
       Pin_ConfigGpioPin(&pins[a], ePinModeAlt, ePinOutputPushPull,
           ePinSpeedMax, ePinPullNone, kEthAf);
     }
@@ -114,7 +113,7 @@ bool ETH_InitRmiiGpio(Rmii* rmii) {
   Pin *pins = (Pin*)rmii;
 
   for(int a = 0; a < 8; a++) {
-    if(&pins[a]) {
+    if(pins[a].port != NULL) {
       Pin_ConfigGpioPin(&pins[a], ePinModeAlt, ePinOutputPushPull,
           ePinSpeedMax, ePinPullNone, kEthAf);
     }
@@ -139,7 +138,9 @@ bool ETH_SmiTransfer(uint16_t addr, uint16_t reg, uint16_t* data, bool write) {
     (write ? ETH_MACMIIAR_MW : 0) |  // Read/write bit.
     ETH_MACMIIAR_MB;  // Tell the peripheral to start the transaction.
 
-  // Busy wait until the transaction completes.
+  // Busy wait until the transaction completes. It might be good practice to
+  // have a timeout here, but this is not gracefully recoverable anyway. So
+  // we're not going to bother.
   while(ETH->MACMIIAR & ETH_MACMIIAR_MB);
 
   // Send the data back to the caller.
@@ -151,7 +152,9 @@ bool ETH_SmiTransfer(uint16_t addr, uint16_t reg, uint16_t* data, bool write) {
 }
 
 // Configure the GPIOs to the PHY.
-//   Only one of mii or rmii must be non-null.
+//   Unfortunately I didn't come up with a good way to configure RMII vs MII
+//     without a #define, so both objects must be non-null. The "used" field
+//     determines which bus to configure.
 //   smi may be null.
 void ETH_InitBus(Smi* smi, Mii* mii, Rmii* rmii) {
   // Put the Ethernet peripheral into reset.
@@ -181,15 +184,19 @@ void ETH_InitBus(Smi* smi, Mii* mii, Rmii* rmii) {
   NVIC_SetPriority(ETH_IRQn, configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY);
   NVIC_EnableIRQ(ETH_IRQn);
 
-  // Issue Ethernet DMA peripheral reset.
+  // Issue Ethernet DMA peripheral reset. Note that it takes a little while for
+  // the peripheral to reset. Normally you'd want a timeout, but this embedded
+  // system doesn't really need graceful error recovery.
   ETH->DMABMR |= ETH_DMABMR_SR;
-  while(ETH->DMABMR & ETH_DMABMR_SR);  // Apparently it takes a while to reset.
+  while(ETH->DMABMR & ETH_DMABMR_SR);
 
   // Configure SMI GPIOs.
   ETH_InitSmiGpio(smi);
 };
 
-// Initialize the MAC with sane defaults.
+// Initialize the MAC with sane defaults. Note that this assumes a full-duplex
+// 100 mbps link. This driver does not reconfigure the MAC to other link
+// parameters based on the PHY.
 void ETH_MacInit(void) {
   uint32_t maccr = ETH->MACCR & kMaccrClearMask;
   maccr |=
@@ -263,7 +270,6 @@ void ETH_SetMacAddr(void) {
 //   head - points to the first descriptor
 ETH_DmaDesc* ETH_GetNextDesc(ETH_DmaDesc* head,
     int *start, int len, bool check_owned) {
-  int end = *start + len - 1; // Only cycle through once - don't return start.
   int current;
   ETH_DmaDesc *desc;
 
@@ -273,7 +279,7 @@ ETH_DmaDesc* ETH_GetNextDesc(ETH_DmaDesc* head,
   #endif
 
   // Iterate over descriptors. If desired, return only those owned by the CPU.
-  for(int a = *start; a < end; a++) {
+  for(int a = *start; a < *start + len; a++) {
     current = a % len;
     desc = &head[current];
     if(!check_owned || !(desc->Status & (1U << 31))) {
@@ -311,7 +317,7 @@ void ETH_DmaDescTxInit(ETH_DmaDesc* head, int len) {
 }
 
 // Wire up the RX descriptors. Except we actually allocate buffers.
-void ETH_DmaDescRxInit(ETH_DmaDesc* head, int len) {
+bool ETH_DmaDescRxInit(ETH_DmaDesc* head, int len) {
   static size_t frame_len = FRAME_PADDED;
 
   // Inform the hardware where to look for descriptors.
@@ -325,10 +331,22 @@ void ETH_DmaDescRxInit(ETH_DmaDesc* head, int len) {
   ETH_DmaDesc *current = ETH_GetNextDesc(head, &next_idx, len, false);
   ETH_DmaDesc *next;
   do {
+    // Note that if we were checking ownership, then it would be paramount to
+    // verify that 'next' is not NULL. But this is an initialization function
+    // and we are not checking for ownership since we are setting up the linked
+    // list for the descriptor ring.
     next = ETH_GetNextDesc(head, &next_idx, len, false);
     current->ControlBufferSize = (1U << 14) |  // Second address chained.
         (frame_len & 0x1FFF);  // Buffer is the maximum packet length.
-    current->Buffer1Addr = pucGetNetworkBuffer(&frame_len);
+
+    uint8_t* network_buffer = pucGetNetworkBuffer(&frame_len);
+    // If we've exhausted the heap and don't get another network buffer, we
+    // shouldn't wire it into the peripheral.
+    if(!network_buffer) {
+      iptraceFAILED_TO_OBTAIN_NETWORK_BUFFER();
+      break;
+    }
+    current->Buffer1Addr = network_buffer;
     current->Buffer2NextDescAddr = next;
     current->Status = (1U << 31);  // Set ownership to DMA peripheral.
     current = next;
@@ -338,6 +356,15 @@ void ETH_DmaDescRxInit(ETH_DmaDesc* head, int len) {
   // Clean the data cache for the lines occupied by the descriptors.
   SCB_CleanDCache_by_Addr(head, len * sizeof(ETH_DmaDesc));
   #endif
+
+  // Propagate success or clean up on failure.
+  if(next == head) {
+    return true;
+  } else {
+    // Clear the memory used by the descriptors, as if nothing happened.
+    memset(head, 0, len * sizeof(ETH_DmaDesc));
+    return false;
+  }
 }
 
 void ETH_Start() {
@@ -365,29 +392,35 @@ BaseType_t xNetworkInterfaceInitialise(void) {
   ETH_DmaInit();
   ETH_SetMacAddr();
   ETH_DmaDescTxInit(tx_dma_desc, ipconfigNUM_TX_DESCRIPTORS);
-  ETH_DmaDescRxInit(rx_dma_desc, ipconfigNUM_RX_DESCRIPTORS);
+  bool rx_allocation_success =
+    ETH_DmaDescRxInit(rx_dma_desc, ipconfigNUM_RX_DESCRIPTORS);
 
-  // Fire up a task which will handle packet reception.
-  xTaskCreate(rxTask,
-      "rxTask",
-      configMINIMAL_STACK_SIZE,
-      NULL,
-      configMAX_PRIORITIES - 1,
-      &rx_task_handle);
+  configASSERT(rx_allocation_success);
 
-  // Fire up a task which will release TX buffers.
-  xTaskCreate(txTask,
-      "txTask",
-      configMINIMAL_STACK_SIZE,
-      NULL,
-      configMAX_PRIORITIES - 2,
-      &tx_task_handle);
+  if(rx_allocation_success) {
+    // Fire up a task which will handle packet reception.
+    xTaskCreate(rxTask,
+        "rxTask",
+        configMINIMAL_STACK_SIZE,
+        NULL,
+        configMAX_PRIORITIES - 1,
+        &rx_task_handle);
 
-  // Enable data reception and transmission at the DMA peripheral. Now we can
-  // expect to start moving packets.
-  ETH_Start();
+    // Fire up a task which will release TX buffers.
+    xTaskCreate(txTask,
+        "txTask",
+        configMINIMAL_STACK_SIZE,
+        NULL,
+        configMAX_PRIORITIES - 2,
+        &tx_task_handle);
 
-  return pdPASS;
+    // Enable data reception and transmission at the DMA peripheral. Now we can
+    // expect to start moving packets.
+    ETH_Start();
+    return pdPASS;
+  } else {
+    return pdFAIL;
+  }
 }
 
 // This finds a CPU-owned TX descriptor, points it to the Ethernet buffer, and
@@ -398,11 +431,17 @@ BaseType_t xNetworkInterfaceOutput(
     BaseType_t xReleaseAfterSend ) {
   static int next_tx = 0;
 
+  // We're not supporting letting the IP stack hold on to buffers.
+  configASSERT(xReleaseAfterSend == pdTRUE);
+
   // Fetch the next CPU-owned TX descriptor.
   ETH_DmaDesc *desc = ETH_GetNextDesc(tx_dma_desc,
       &next_tx, ipconfigNUM_TX_DESCRIPTORS, true);
 
-  if(!desc) {return pdFALSE;}  // No available TX descriptors.
+  // No available TX descriptors.
+  if(!desc) {
+    return pdFALSE;
+  }
 
   // FreeRTOS+TCP doesn't zero the ICMP checksum field, but the STM32 MAC
   // requires zeros for hardware checksumming. This is a hack workaround.
@@ -414,14 +453,13 @@ BaseType_t xNetworkInterfaceOutput(
 
   #if defined(STM32F7) || defined(STM32H5)
   // Clean the data cache for the lines occupied by the data buffer.
-  SCB_CleanDCache_by_Addr(pxDescriptor->pucEthernetBuffer, \
-    pxDescriptor->xDataLength);
+  SCB_CleanDCache_by_Addr(pxDescriptor->pucEthernetBuffer, FRAME_PADDED);
   #endif
 
   // Populate the fresh descriptor.
   desc->Buffer1Addr = pxDescriptor->pucEthernetBuffer;
   desc->ControlBufferSize = (pxDescriptor->xDataLength & 0x1FFF);
-  desc->Status |=
+  desc->Status =
       (1U << 31) |  // Hand the descriptor back to the DMA.
       (1U << 30) |  // Trigger an interrupt on completion.
       (1U << 29) |  // Descriptor contains the first segment of a packet.
@@ -462,10 +500,15 @@ static void rxTask(void* pvParameters) {
   IPStackEvent_t xRxEvent;
 
   for(;;) {
-    // Block on the availability of a reception notification.
-    ulTaskNotifyTake( pdFALSE, portMAX_DELAY );
+    // Block on the availability of a reception notification. The first argument
+    // being pdTRUE means that the counter is reset to zero immediately. Since
+    // we loop over all available descriptors, we will process everything in the
+    // available buffers every time the task notification unblocks. There will
+    // be nothing left and we don't want to trigger immediately on phantom data.
+    ulTaskNotifyTake( pdTRUE, portMAX_DELAY );
 
-    // Iterate over all CPU-owned RX descriptors.
+    // Iterate over all CPU-owned RX descriptors. The loop continues while
+    // rx_desc isn't null.
     while(rx_desc = ETH_GetNextDesc(rx_dma_desc,
         &next_idx, ipconfigNUM_RX_DESCRIPTORS, true)) {
       // Get a new buffer that's big enough to receive another packet. It'll be
@@ -480,40 +523,73 @@ static void rxTask(void* pvParameters) {
       // Make sure we're not trying to write to a buffer we didn't get. Hitting
       // this drops the packet and releases the buffer.
       if(!pxDescriptor) {
-        vReleaseNetworkBuffer(rx_desc->Buffer1Addr); // Release the buffer.
-        continue;
-      }
-
-      // Pointer swap for the Ethernet buffers.
-      pucTemp = pxDescriptor->pucEthernetBuffer;
-      pxDescriptor->pucEthernetBuffer = rx_desc->Buffer1Addr;
-      pxDescriptor->xDataLength = ((rx_desc->Status >> 16) & 0x1FFF);
-      rx_desc->Buffer1Addr = pucTemp;
-
-      // ipBUFFER_PADDING bytes before the buffer is a pointer to the IP stack's
-      // descriptor associated with that buffer. The example code swaps them,
-      // and therefore we do too, but only the first statement seems strictly
-      // necessary.
-      *((NetworkBufferDescriptor_t**)
-          (pxDescriptor->pucEthernetBuffer - ipBUFFER_PADDING)) = pxDescriptor;
-      *((NetworkBufferDescriptor_t**)
-          (rx_desc->Buffer1Addr - ipBUFFER_PADDING)) = (NetworkBufferDescriptor_t*)rx_desc;
-
-      // Release the DMA descriptor back to DMA.
-      rx_desc->Status |= (1u << 31);
-
-      // Try to notify the IP stack of what's just happened.
-      xRxEvent.eEventType = eNetworkRxEvent;  // We've received a packet.
-      xRxEvent.pvData = (void*) pxDescriptor;  // This is the descriptor.
-      if( xSendEventStructToIPTask(&xRxEvent, 0) == pdFALSE) {
-        // We couldn't send the packet to the IP stack.
-        vReleaseNetworkBufferAndDescriptor( pxDescriptor );
         iptraceETHERNET_RX_EVENT_LOST();
       } else {
-        // Message successfully handed off; call the trace macros to log it.
-        iptraceNETWORK_INTERFACE_RECEIVE();
+        // Mark error-flagged or fragmented packets to be dropped.
+        bool drop_packet = false;
+        uint32_t packet_status = rx_desc->Status;
+        if(!(packet_status & (1u << 9)) ||  // FS bit
+           !(packet_status & (1u << 8)) ||  // LS bit
+           (packet_status & (1u << 15))) {  // ES bit
+          drop_packet = true;
+        }
+
+        if(drop_packet) {
+          vReleaseNetworkBufferAndDescriptor(pxDescriptor);
+          iptraceETHERNET_RX_EVENT_LOST();
+        } else {
+          // Pointer swap for the Ethernet buffers.
+          pucTemp = pxDescriptor->pucEthernetBuffer;
+          pxDescriptor->pucEthernetBuffer = rx_desc->Buffer1Addr;
+          pxDescriptor->xDataLength = ((rx_desc->Status >> 16) & 0x1FFF);
+          rx_desc->Buffer1Addr = pucTemp;
+
+          // ipBUFFER_PADDING bytes before the buffer is a pointer to the IP stack's
+          // descriptor associated with that buffer. The example code swaps them,
+          // and therefore we do too, but only the first statement seems strictly
+          // necessary.
+          *((NetworkBufferDescriptor_t**)
+              (pxDescriptor->pucEthernetBuffer - ipBUFFER_PADDING)) = pxDescriptor;
+          *((NetworkBufferDescriptor_t**)
+              (rx_desc->Buffer1Addr - ipBUFFER_PADDING)) = (NetworkBufferDescriptor_t*)rx_desc;
+
+          // Try to notify the IP stack of what's just happened.
+          xRxEvent.eEventType = eNetworkRxEvent;  // We've received a packet.
+          xRxEvent.pvData = (void*) pxDescriptor;  // This is the descriptor.
+          if( xSendEventStructToIPTask(&xRxEvent, 0) == pdFALSE) {
+            // We couldn't send the packet to the IP stack.
+            vReleaseNetworkBufferAndDescriptor( pxDescriptor );
+            iptraceETHERNET_RX_EVENT_LOST();
+          } else {
+            // Message successfully handed off; call the trace macros to log it.
+            iptraceNETWORK_INTERFACE_RECEIVE();
+          }
+        }
       }
+
+      #if defined(STM32F7) || defined(STM32H5)
+      // Clean the data cache for the new buffer handed back to the DMA.
+      SCB_CleanDCache_by_Addr(rx_desc->Buffer1Addr, FRAME_PADDED);
+      #endif
+
+      // Release the DMA descriptor back to DMA. We have to do this whether or
+      // not we successfully delivered a packet to the IP stack because repeated
+      // failures could exhaust all of the DMA-facing descriptors and hang the
+      // peripheral. We're also clearing all of the other status bits because
+      // they are no longer relevant; the packet has been processed.
+      rx_desc->Status = (1u << 31);
+
+      #if defined(STM32F7) || defined(STM32H5)
+      // Clean the data cache for the lines occupied by the descriptor.
+      SCB_CleanDCache_by_Addr(rx_desc, sizeof(ETH_DmaDesc));
+      #endif
     }
+
+    // After we've iterated through all of the descriptors, there should be
+    // some available for the Ethernet peripheral to use again. Writing anything
+    // to the ETH_DMARPDR register should un-stick the DMA and get it to receive
+    // packets again.
+    ETH->DMARPDR = 0;
   }
 }
 
@@ -531,9 +607,12 @@ static void txTask(void* pvParameters) {
     tx_desc = ETH_GetNextDesc(tx_dma_desc,
         &next_tx, ipconfigNUM_TX_DESCRIPTORS, true);
 
-    // Don't need to do a null check here; vReleaseNetworkBuffer() does that.
-    vReleaseNetworkBuffer(tx_desc->Buffer1Addr);
-    tx_desc->Buffer1Addr = NULL;
+    // Don't need to do a null check of Buffer1Addr because
+    // vReleaseNetworkBuffer() does that, but tx_desc itself might be null.
+    if(tx_desc) {
+      vReleaseNetworkBuffer(tx_desc->Buffer1Addr);
+      tx_desc->Buffer1Addr = NULL;
+    }
   }
 }
 
@@ -541,7 +620,7 @@ static void txTask(void* pvParameters) {
 // handler checks for passed-to-CPU descriptors, hands control of the associated
 // buffers back to the IP stack.
 void ETH_IRQHandler(void) {
-  BaseType_t task_woken;
+  BaseType_t task_woken = pdFALSE;
 
   // Notify the RX task that a packet is available.
   if(ETH->DMASR & (1U << 6)) {
@@ -553,6 +632,9 @@ void ETH_IRQHandler(void) {
     vTaskNotifyGiveFromISR(tx_task_handle, &task_woken);
   }
 
-  ETH->DMASR |= (1U << 16);  // Clear normal interrupts.
+  ETH->DMASR |= (
+    (1U << 16) |  // Clear normal interrupt summary bit.
+    (1U << 6) |  // Clear receive interrupt bit.
+    (1U << 0));  // Clear transmit interrupt bit.
   portYIELD_FROM_ISR(task_woken);  // Jump back to the deferred processing task.
 }
