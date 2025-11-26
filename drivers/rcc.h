@@ -49,12 +49,12 @@ void RCC_DisableHsi();
 void RCC_DisablePll();
 
 // Populates *rcc with system clock information computed by reading registers.
-void RCC_ReadClocks(Rcc *rcc);
+void RCC_ReadClocks(Rcc* rcc);
 
 // Computes values for and sets up the STM32 clock tree, as well as setting
 // appropriate flash wait states (assuming 3.3 volts VCC).
 //    *rcc: May be NULL. If not, is populated with clock frequencies.
 //    target: May be NULL if PLL is unused. Set to the target SYSCLK frequency.
-uint32_t RCC_ClockConfig(Rcc *rcc, uint32_t target);
+uint32_t RCC_ClockConfig(Rcc* rcc, uint32_t target);
 
 #endif

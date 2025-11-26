@@ -8,6 +8,7 @@
 // TODO(zbrozek): Make clear the pre-reqs on *rcc for calling RCC_ClockConfig().
 
 #include "rcc.h"
+
 #include "stm32.h"
 
 static const uint32_t kPllQMin = 0x2;
@@ -15,15 +16,15 @@ static const uint32_t kPllQMax = 0xF;
 static const uint32_t kPllRMax = 0x7;
 
 static const uint32_t kHsiClock = 16 * 1000 * 1000;  // 16 MHz.
-static const uint32_t kHseClock = HSE_VALUE;  // Project-wide #define.
+static const uint32_t kHseClock = HSE_VALUE;         // Project-wide #define.
 static const uint32_t kUsbClock = 48 * 1000 * 1000;  // 48 MHz.
 
 static const uint32_t kAhbMaxDivisor = 15;
 static const uint32_t kApb1MaxDivisor = 7;
 static const uint32_t kApb2MaxDivisor = 7;
 
-static const uint32_t kVcoInMinClock = 1 * 1000 * 1000;  // 1 MHz.
-static const uint32_t kVcoInMaxClock = 2 * 1000 * 1000;  // 2 MHz.
+static const uint32_t kVcoInMinClock = 1 * 1000 * 1000;     // 1 MHz.
+static const uint32_t kVcoInMaxClock = 2 * 1000 * 1000;     // 2 MHz.
 static const uint32_t kVcoOutMinClock = 100 * 1000 * 1000;  // 100 MHz.
 static const uint32_t kVcoOutMaxClock = 432 * 1000 * 1000;  // 432 MHz.
 
@@ -34,11 +35,10 @@ static const uint32_t kAhbMaxClock = 180 * 1000 * 1000;  // 180 MHz
 static const uint32_t kApb1MaxClock = 45 * 1000 * 1000;  // 45 MHz.
 static const uint32_t kApb2MaxClock = 90 * 1000 * 1000;  // 90 MHz.
 static const uint8_t kWaitStateLookup[4][kWaitCycles] = {
-  {20, 40, 60,  80, 100, 120, 140, 160, 180,   0},
-  {22, 44, 66,  88, 110, 132, 154, 176, 198, 216},
-  {24, 48, 72,  96, 120, 144, 168, 192, 216,   0},
-  {30, 60, 90, 120, 150, 180, 210, 216,   0,   0}
-};
+    {20, 40, 60, 80, 100, 120, 140, 160, 180, 0},
+    {22, 44, 66, 88, 110, 132, 154, 176, 198, 216},
+    {24, 48, 72, 96, 120, 144, 168, 192, 216, 0},
+    {30, 60, 90, 120, 150, 180, 210, 216, 0, 0}};
 #endif
 
 #ifdef STM32F4
@@ -48,11 +48,10 @@ static const uint32_t kAhbMaxClock = 168 * 1000 * 1000;  // 168 MHz
 static const uint32_t kApb1MaxClock = 42 * 1000 * 1000;  // 42 MHz.
 static const uint32_t kApb2MaxClock = 84 * 1000 * 1000;  // 84 MHz.
 static const uint8_t kWaitStateLookup[4][kWaitCycles] = {
-  {20, 40, 60,  80, 100, 120, 140, 160, 168},
-  {22, 44, 66,  88, 110, 132, 154, 176, 180},
-  {24, 48, 72,  96, 120, 144, 168, 180,   0},
-  {30, 60, 90, 120, 150, 180,   0,   0,   0}
-};
+    {20, 40, 60, 80, 100, 120, 140, 160, 168},
+    {22, 44, 66, 88, 110, 132, 154, 176, 180},
+    {24, 48, 72, 96, 120, 144, 168, 180, 0},
+    {30, 60, 90, 120, 150, 180, 0, 0, 0}};
 #endif
 
 // Enables the high-speed external (HSE) clock.
@@ -60,21 +59,21 @@ static const uint8_t kWaitStateLookup[4][kWaitCycles] = {
 // used with external oscillators. Set this to false when using a crystal.
 void RCC_EnableHse(bool bypass) {
   RCC->CR |= (bypass ? RCC_CR_HSEBYP : 0);  // No crystal; enable HSE bypass.
-  RCC->CR |= RCC_CR_HSEON;  // Enable the HSE.
-  while(!(RCC->CR & RCC_CR_HSERDY));  // Wait for the HSE to become stable.
+  RCC->CR |= RCC_CR_HSEON;                  // Enable the HSE.
+  while (!(RCC->CR & RCC_CR_HSERDY));  // Wait for the HSE to become stable.
 }
 
 // Disables the high-speed external (HSE) clock.
 void RCC_DisableHse() {
   RCC->CR &= ~RCC_CR_HSEBYP;  // Disable HSE bypass.
-  RCC->CR &= ~RCC_CR_HSEON;  // Disable the HSE.
+  RCC->CR &= ~RCC_CR_HSEON;   // Disable the HSE.
   // ST busy-waits here. We omit the wait for want of a purpose.
 }
 
 // Enables the high-speed internal (HSI) RC oscillator clock.
 void RCC_EnableHsi() {
-  RCC->CR |= RCC_CR_HSION;  // Enable the HSI.
-  while(!(RCC->CR & RCC_CR_HSIRDY));  // Wait for the HSI to become stable.
+  RCC->CR |= RCC_CR_HSION;             // Enable the HSI.
+  while (!(RCC->CR & RCC_CR_HSIRDY));  // Wait for the HSI to become stable.
 }
 
 // Disables the high-speed internal (HSI) RC oscillator clock.
@@ -91,8 +90,8 @@ void RCC_DisablePll() {
 
 static uint32_t RCC_FlashWaitLookup(uint32_t sysclk, uint32_t vcc_mv) {
   // Pick which table to use for lookup based on stated input voltage.
-  const uint8_t *wait_table;
-  if(vcc_mv >= 2700) {
+  const uint8_t* wait_table;
+  if (vcc_mv >= 2700) {
     wait_table = kWaitStateLookup[3];
   } else if (vcc_mv >= 2400) {
     wait_table = kWaitStateLookup[2];
@@ -102,8 +101,8 @@ static uint32_t RCC_FlashWaitLookup(uint32_t sysclk, uint32_t vcc_mv) {
     wait_table = kWaitStateLookup[0];
   }
   // Look up the minimum acceptable number of wait states.
-  for(int32_t index = kWaitCycles - 1; index >= 0; index--) {
-    if((wait_table[index] * 1000 * 1000) >= sysclk) {
+  for (int32_t index = kWaitCycles - 1; index >= 0; index--) {
+    if ((wait_table[index] * 1000 * 1000) >= sysclk) {
       return index;
     }
   }
@@ -111,29 +110,41 @@ static uint32_t RCC_FlashWaitLookup(uint32_t sysclk, uint32_t vcc_mv) {
   return kWaitCycles - 1;
 }
 
-void RCC_ComputePll(Rcc *rcc, uint32_t target) {
+void RCC_ComputePll(Rcc* rcc, uint32_t target) {
   // Find the best PLL values without going over the target. Loops are ordered
   // to minimize PLL jitter. Divide by pll_m before multiplying by pll_n to
   // avoid integer overflow.
   uint32_t best = 0;
   rcc->pll.in = (rcc->pll.src == eRccSrcHse) ? kHseClock : kHsiClock;
-  for(uint32_t pll_m = 2; pll_m <= 63; pll_m++) {
+  for (uint32_t pll_m = 2; pll_m <= 63; pll_m++) {
     // Bail on illegal VCO input frequencies.
     uint32_t vco_in = rcc->pll.in / pll_m;
-    if(vco_in > kVcoInMaxClock) {continue;}
-    if(vco_in < kVcoInMinClock) {break;}
+    if (vco_in > kVcoInMaxClock) {
+      continue;
+    }
+    if (vco_in < kVcoInMinClock) {
+      break;
+    }
 
-    for(uint32_t pll_n = 2; pll_n <= 511; pll_n++) {
+    for (uint32_t pll_n = 2; pll_n <= 511; pll_n++) {
       // Bail on illegal VCO output frequencies.
       uint32_t vco_out = (rcc->pll.in / pll_m) * pll_n;
-      if(vco_out > kVcoOutMaxClock) {break;}
-      if(vco_out < kVcoOutMinClock) {continue;}
+      if (vco_out > kVcoOutMaxClock) {
+        break;
+      }
+      if (vco_out < kVcoOutMinClock) {
+        continue;
+      }
 
-      for(uint32_t pll_p = 0; pll_p <= 3; pll_p++) {
+      for (uint32_t pll_p = 0; pll_p <= 3; pll_p++) {
         uint32_t pll_out = vco_out / (2 * (pll_p + 1));
-        if(pll_out > kPllMaxClock) {continue;}
-        if(pll_out > target) {continue;}
-        if((target - pll_out) < (target - best)) {
+        if (pll_out > kPllMaxClock) {
+          continue;
+        }
+        if (pll_out > target) {
+          continue;
+        }
+        if ((target - pll_out) < (target - best)) {
           rcc->pll.out = best = pll_out;
           rcc->pll.m = pll_m;
           rcc->pll.n = pll_n;
@@ -142,14 +153,14 @@ void RCC_ComputePll(Rcc *rcc, uint32_t target) {
 
           // Do our best to satisfy USB clock requirements.
           uint32_t pll_q = vco_out / kUsbClock;
-          if(pll_q >= kPllQMin && pll_q <= kPllQMax) {
+          if (pll_q >= kPllQMin && pll_q <= kPllQMax) {
             rcc->pll.q = pll_q;
           } else {
             rcc->pll.q = kPllQMax;
           }
 
           // Bail immediately if we've hit the jackpot.
-          if(((vco_out % kUsbClock) == 0) && (target == pll_out)) {
+          if (((vco_out % kUsbClock) == 0) && (target == pll_out)) {
             return;
           }
         }
@@ -160,28 +171,28 @@ void RCC_ComputePll(Rcc *rcc, uint32_t target) {
 }
 
 // Computes the bits with which to configure AHB prescalers.
-uint32_t RCC_GetBinaryDivisorBits(uint32_t input_clock, uint32_t *output_clock,
-    uint32_t max_shift, uint32_t max_clock) {
+uint32_t RCC_GetBinaryDivisorBits(uint32_t input_clock, uint32_t* output_clock,
+                                  uint32_t max_shift, uint32_t max_clock) {
   // PLL clock is already in-range; do nothing.
-  if(input_clock <= max_clock) {
+  if (input_clock <= max_clock) {
     *output_clock = input_clock;
     return 0;
   }
 
   // Find the smallest division ratio that stays below max clock limits.
-  for(uint32_t shift = 0; shift <= max_shift; shift++) {
+  for (uint32_t shift = 0; shift <= max_shift; shift++) {
     *output_clock = input_clock >> (shift + 1);
-    if(*output_clock <= max_clock) {
+    if (*output_clock <= max_clock) {
       return 0x4u | shift;
     }
   }
   return 0;  // Never happens; silences a compiler warning
 }
 
-void RCC_SetupPll(Rcc *rcc) {
-  PllCfg *pll = &rcc->pll;
+void RCC_SetupPll(Rcc* rcc) {
+  PllCfg* pll = &rcc->pll;
   // Enable the precursor clock. Does not disable any clocks.
-  switch(pll->src) {
+  switch (pll->src) {
     case eRccSrcHse:
       RCC_EnableHse(rcc->hse_bypass);
       RCC->PLLCFGR |= RCC_PLLCFGR_PLLSRC;  // Select HSE as input to PLL.
@@ -216,18 +227,18 @@ void RCC_SetupPll(Rcc *rcc) {
   RCC->PLLCFGR |= (pll->p << RCC_PLLCFGR_PLLP_Pos) & RCC_PLLCFGR_PLLP;
 
   // Enable the PLL.
-  RCC->CR |= RCC_CR_PLLON;  // Turn on the PLL.
-  while(!(RCC->CR & RCC_CR_PLLRDY));  // Wait for it to stabilize.
+  RCC->CR |= RCC_CR_PLLON;             // Turn on the PLL.
+  while (!(RCC->CR & RCC_CR_PLLRDY));  // Wait for it to stabilize.
 }
 
-void RCC_PrePostOps(Rcc *rcc) {
+void RCC_PrePostOps(Rcc* rcc) {
   // Clear and set PPRE2, PPRE1, HPRE bits to set AHB, APB1, and APB2 clocks.
   uint32_t hpre_bits = RCC_GetBinaryDivisorBits(rcc->sys, &rcc->ahb,
-      kAhbMaxDivisor, kAhbMaxClock);
-  uint32_t ppre1_bits = RCC_GetBinaryDivisorBits(rcc->ahb, &rcc->apb1,
-      kApb1MaxDivisor, kApb1MaxClock);
-  uint32_t ppre2_bits = RCC_GetBinaryDivisorBits(rcc->ahb, &rcc->apb2,
-      kApb2MaxDivisor, kApb2MaxClock);
+                                                kAhbMaxDivisor, kAhbMaxClock);
+  uint32_t ppre1_bits = RCC_GetBinaryDivisorBits(
+      rcc->ahb, &rcc->apb1, kApb1MaxDivisor, kApb1MaxClock);
+  uint32_t ppre2_bits = RCC_GetBinaryDivisorBits(
+      rcc->ahb, &rcc->apb2, kApb2MaxDivisor, kApb2MaxClock);
 
   // Set the APB1 prescaler.
   RCC->CFGR &= ~RCC_CFGR_PPRE1;
@@ -246,31 +257,31 @@ void RCC_PrePostOps(Rcc *rcc) {
   FLASH->ACR &= ~FLASH_ACR_LATENCY;
   FLASH->ACR |= waits << FLASH_ACR_LATENCY_Pos;
 
-  // Enable ART accelerator / caches.
-  #ifdef STM32F4
+// Enable ART accelerator / caches.
+#ifdef STM32F4
   FLASH->ACR |= FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN;
-  #endif
-  #ifdef STM32F7
+#endif
+#ifdef STM32F7
   FLASH->ACR |= FLASH_ACR_ARTEN | FLASH_ACR_PRFTEN;
-  #endif
+#endif
 }
 
 // Computes values for and sets up the STM32 clock tree, as well as setting
 // appropriate flash wait states (assuming 3.3 volts VCC).
-uint32_t RCC_ClockConfig(Rcc *rcc, uint32_t target) {
+uint32_t RCC_ClockConfig(Rcc* rcc, uint32_t target) {
   // Record where we've started.
   Rcc start;
   RCC_ReadClocks(&start);
 
   // Set up the clock tree up to but not including SYSCLK. Set rcc->sys.
-  switch(rcc->src) {
+  switch (rcc->src) {
     case eRccSrcHse:
       RCC_EnableHse(rcc->hse_bypass);
       rcc->sys = kHseClock;
       break;
     case eRccSrcPll:
       RCC_ComputePll(rcc, target);  // Figure out our target PLL parameters.
-      RCC_SetupPll(rcc);  // Enable the PLL and its precursor.
+      RCC_SetupPll(rcc);            // Enable the PLL and its precursor.
       rcc->sys = rcc->pll.out;
       break;
     case eRccSrcHsi:
@@ -283,21 +294,25 @@ uint32_t RCC_ClockConfig(Rcc *rcc, uint32_t target) {
   // We're about to increase the system bus clock speed. We need to decrease
   // bus clocks and increase flash wait states to avoid faulting the processor
   // immediately upon switching clocks.
-  if(rcc->sys >= start.sys) {RCC_PrePostOps(rcc);}
+  if (rcc->sys >= start.sys) {
+    RCC_PrePostOps(rcc);
+  }
 
   // Change the system clock mux over to the now-ready source.
   RCC->CFGR = RCC->CFGR & ~(0x3) | rcc->src;  // Select the new source.
-  while((RCC->CFGR & (rcc->src << 2)) != (rcc->src << 2));  // Wait for switch.
+  while ((RCC->CFGR & (rcc->src << 2)) != (rcc->src << 2));  // Wait for switch.
 
   // We've reduced the system clock, so we should increase downstream bus clocks
   // and flash wait states after the reduction.
-  if(target < start.sys) {RCC_PrePostOps(rcc);}
+  if (target < start.sys) {
+    RCC_PrePostOps(rcc);
+  }
 
   return rcc->sys;
 }
 
 // Populates *rcc with system clock information computed by reading registers.
-void RCC_ReadClocks(Rcc *rcc) {
+void RCC_ReadClocks(Rcc* rcc) {
   rcc->src = (RccSrc)((RCC->CFGR & RCC_CFGR_SWS) >> RCC_CFGR_SWS_Pos);
   rcc->hse_bypass = RCC->CR & RCC_CR_HSEBYP;
 
@@ -318,27 +333,27 @@ void RCC_ReadClocks(Rcc *rcc) {
   rcc->pll.out = vco / ((rcc->pll.p + 1) * 2);
 
   uint32_t ahb_shift = 0;
-  if(RCC->CFGR & RCC_CFGR_HPRE_3) {
+  if (RCC->CFGR & RCC_CFGR_HPRE_3) {
     ahb_shift = (RCC->CFGR & (RCC_CFGR_HPRE & (RCC_CFGR_HPRE >> 1)));
     ahb_shift >>= RCC_CFGR_HPRE_Pos + 1;
     ahb_shift++;
   }
 
   uint32_t apb1_shift = 0;
-  if(RCC->CFGR & RCC_CFGR_PPRE1_2) {
+  if (RCC->CFGR & RCC_CFGR_PPRE1_2) {
     apb1_shift = (RCC->CFGR & (RCC_CFGR_PPRE1 & (RCC_CFGR_PPRE1 >> 1)));
     apb1_shift >>= RCC_CFGR_PPRE1_Pos;
     apb1_shift++;
   }
 
   uint32_t apb2_shift = 0;
-  if(RCC->CFGR & RCC_CFGR_PPRE2_2) {
+  if (RCC->CFGR & RCC_CFGR_PPRE2_2) {
     apb2_shift = (RCC->CFGR & (RCC_CFGR_PPRE2 & (RCC_CFGR_PPRE2 >> 1)));
     apb2_shift >>= RCC_CFGR_PPRE2_Pos;
     apb2_shift++;
   }
 
-  switch(rcc->src) {
+  switch (rcc->src) {
     case eRccSrcHsi:
       rcc->sys = kHsiClock;
       break;
