@@ -58,11 +58,6 @@ static void exampleTask(void *pvParameters)
 // preemptive scheduler. Should never return.
 int main( void )
 {
-  // Enable the ART accelerator, which reduces instruction latency to one cycle
-  // when executing from FLASH.
-  FLASH->ACR |= FLASH_ACR_ARTEN;
-  FLASH->ACR |= FLASH_ACR_PRFTEN;
-
   // Enable the CPU data cache, noticeably speeding up loops with fast accesses.
   // Note that this is somewhat dangerous, particularly when sharing data using
   // the DMA peripheral. Either clean and invalidate the shared regions

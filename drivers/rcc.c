@@ -243,8 +243,16 @@ void RCC_PrePostOps(Rcc *rcc) {
 
   // Set the number of flash wait states.
   uint32_t waits = RCC_FlashWaitLookup(rcc->ahb, 3300);
-  FLASH->ACR &= FLASH_ACR_LATENCY;
+  FLASH->ACR &= ~FLASH_ACR_LATENCY;
   FLASH->ACR |= waits << FLASH_ACR_LATENCY_Pos;
+
+  // Enable ART accelerator / caches.
+  #ifdef STM32F4
+  FLASH->ACR |= FLASH_ACR_ICEN | FLASH_ACR_DCEN | FLASH_ACR_PRFTEN;
+  #endif
+  #ifdef STM32F7
+  FLASH->ACR |= FLASH_ACR_ARTEN | FLASH_ACR_PRFTEN;
+  #endif
 }
 
 // Computes values for and sets up the STM32 clock tree, as well as setting

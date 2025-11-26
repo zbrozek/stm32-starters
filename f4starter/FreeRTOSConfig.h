@@ -90,6 +90,7 @@
 #endif
 
 #define configUSE_PREEMPTION            1
+#define configUSE_PORT_OPTIMISED_TASK_SELECTION 1
 #define configUSE_TICKLESS_IDLE         1
 #define configUSE_IDLE_HOOK             1
 #define configUSE_TICK_HOOK             1

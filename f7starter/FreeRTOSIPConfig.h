@@ -280,6 +280,8 @@ Ethernet driver does all the necessary filtering in hardware then software
 filtering can be removed by using a value other than 1 or 0. */
 #define ipconfigETHERNET_DRIVER_FILTERS_FRAME_TYPES	1
 
+/* Definitions to get packet payload buffers to land on 32-byte boundaries. */ 
+#define ipconfigBUFFER_PADDING 32
 
 /* Advanced only: in order to access 32-bit fields in the IP packets with
 32-bit memory instructions, all packets will be stored 32-bit-aligned, plus 16-bits.
