@@ -63,14 +63,6 @@
 #define configUSE_APPLICATION_TASK_TAG			0
 #define configUSE_COUNTING_SEMAPHORES			1
 
-/* For the STM32F7 (which supports a data cache), choose 32 byte alignment. */
-#define portBYTE_ALIGNMENT 32
-
-/* The full demo always has tasks to run so the tick will never be turned off.
-The blinky demo will use the default tickless idle implementation to turn the
-tick off. */
-#define configUSE_TICKLESS_IDLE					0
-
 /* Run time stats gathering definitions. */
 #define configGENERATE_RUN_TIME_STATS	0
 

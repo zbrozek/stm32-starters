@@ -275,7 +275,7 @@ ETH_DmaDesc* ETH_GetNextDesc(ETH_DmaDesc* head,
 
   #if defined(STM32F7) || defined(STM32H5)
   // Invalidate the cache so we ensure descriptor ownership is up-to-date.
-  SCB_InvalidateDCache_by_Addr(head, len * sizeof(ETH_DmaDesc));
+  SCB_InvalidateDCache_by_Addr((uint32_t*)head, len * sizeof(ETH_DmaDesc));
   #endif
 
   // Iterate over descriptors. If desired, return only those owned by the CPU.
@@ -312,7 +312,7 @@ void ETH_DmaDescTxInit(ETH_DmaDesc* head, int len) {
 
   #if defined(STM32F7) || defined(STM32H5)
   // Clean the data cache for the lines occupied by the descriptors.
-  SCB_CleanDCache_by_Addr(head, len * sizeof(ETH_DmaDesc));
+  SCB_CleanDCache_by_Addr((uint32_t*)head, len * sizeof(ETH_DmaDesc));
   #endif
 }
 
@@ -354,7 +354,7 @@ bool ETH_DmaDescRxInit(ETH_DmaDesc* head, int len) {
 
   #if defined(STM32F7) || defined(STM32H5)
   // Clean the data cache for the lines occupied by the descriptors.
-  SCB_CleanDCache_by_Addr(head, len * sizeof(ETH_DmaDesc));
+  SCB_CleanDCache_by_Addr((uint32_t*)head, len * sizeof(ETH_DmaDesc));
   #endif
 
   // Propagate success or clean up on failure.
@@ -453,7 +453,7 @@ BaseType_t xNetworkInterfaceOutput(
 
   #if defined(STM32F7) || defined(STM32H5)
   // Clean the data cache for the lines occupied by the data buffer.
-  SCB_CleanDCache_by_Addr(pxDescriptor->pucEthernetBuffer, FRAME_PADDED);
+  SCB_CleanDCache_by_Addr((uint32_t*)pxDescriptor->pucEthernetBuffer, FRAME_PADDED);
   #endif
 
   // Populate the fresh descriptor.
@@ -469,7 +469,7 @@ BaseType_t xNetworkInterfaceOutput(
 
   #if defined(STM32F7) || defined(STM32H5)
   // Clean the data cache for the lines occupied by the descriptor.
-  SCB_CleanDCache_by_Addr(desc, sizeof(ETH_DmaDesc));
+  SCB_CleanDCache_by_Addr((uint32_t*)desc, sizeof(ETH_DmaDesc));
   #endif
 
   // Check to see if the peripheral is suspended; kick it if necessary.
@@ -517,7 +517,7 @@ static void rxTask(void* pvParameters) {
 
       #if defined(STM32F7) || defined(STM32H5)
       // Invalidate the data cache for the lines occupied by the buffer.
-      SCB_InvalidateDCache_by_Addr(rx_desc->Buffer1Addr, FRAME_PADDED);
+      SCB_InvalidateDCache_by_Addr((uint32_t*)rx_desc->Buffer1Addr, FRAME_PADDED);
       #endif
 
       // Make sure we're not trying to write to a buffer we didn't get. Hitting
@@ -569,7 +569,7 @@ static void rxTask(void* pvParameters) {
 
       #if defined(STM32F7) || defined(STM32H5)
       // Clean the data cache for the new buffer handed back to the DMA.
-      SCB_CleanDCache_by_Addr(rx_desc->Buffer1Addr, FRAME_PADDED);
+      SCB_CleanDCache_by_Addr((uint32_t*)rx_desc->Buffer1Addr, FRAME_PADDED);
       #endif
 
       // Release the DMA descriptor back to DMA. We have to do this whether or
@@ -581,7 +581,7 @@ static void rxTask(void* pvParameters) {
 
       #if defined(STM32F7) || defined(STM32H5)
       // Clean the data cache for the lines occupied by the descriptor.
-      SCB_CleanDCache_by_Addr(rx_desc, sizeof(ETH_DmaDesc));
+      SCB_CleanDCache_by_Addr((uint32_t*)rx_desc, sizeof(ETH_DmaDesc));
       #endif
     }
 
