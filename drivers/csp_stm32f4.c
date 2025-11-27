@@ -1,8 +1,7 @@
-#include "limits.h"
 #include "csp.h"
-
-#include "stm32.h"
+#include "limits.h"
 #include "rcc.h"
+#include "stm32.h"
 
 // Memory addresses in this file come from ST's RM0090 document, the reference
 // manual for the STM32F42x. Available at time of writing from ST at:
@@ -10,14 +9,14 @@
 
 // Variables local to this source file
 volatile static int64_t CSP_grossCycleCount = 0;
-__no_init volatile uint32_t UniqueIdentifier[3] @ 0x1FFF7A10;  // RM0090 39.1
+__no_init volatile uint32_t UniqueIdentifier[3] @0x1FFF7A10;  // RM0090 39.1
 
 // Call more often than 2^32 cycles to maintain a 64-bit cycle count.
 void CSP_UpdateGrossCycleCount(void) {
   static uint32_t lastCycleCount = 0;
   uint32_t currentCycleCount = DWT->CYCCNT;
 
-  if(currentCycleCount < lastCycleCount) {
+  if (currentCycleCount < lastCycleCount) {
     CSP_grossCycleCount += ULONG_MAX;
   }
 
@@ -37,20 +36,20 @@ int64_t CSP_TimeMillis(void) {
 }
 
 // Return flash size in 32-bit words.
-int32_t CSP_GetFlashSize(void) {
+uint32_t CSP_GetFlashSize(void) {
   // RM0090 39.2 "Flash size"
   return ((*(volatile uint32_t*)0x1FFF7A22) & 0x0000FFFF) << 10;
 }
 
 // Return flash start address for this processor.
-int32_t CSP_GetFlashStartAddr(void) {
+uint32_t CSP_GetFlashStartAddr(void) {
   // Appears to be the same for all STM32 processors, regardless of series.
   return 0x08000000;
 }
 
 // Reads 96-bit unique ID into caller-provided array.
 void CSP_GetUniqueIdentifier(uint32_t* id) {
-  for(uint8_t i = 0; i < 3; i++) {
+  for (uint8_t i = 0; i < 3; i++) {
     id[i] = UniqueIdentifier[i];
   }
 }
@@ -61,8 +60,8 @@ bool CSP_CompareUniqueIdentifier(uint32_t* idA, uint32_t* idB) {
   // STM32F4 unique identifiers are 96 bits long. We will iterate over three
   // uint32_t elements and do simple integer comparison and return false on
   // any failure.
-  for(uint8_t i = 0; i < 3; i++) {
-    if(idA[i] != idB[i]) {
+  for (uint8_t i = 0; i < 3; i++) {
+    if (idA[i] != idB[i]) {
       return false;
     }
   }
@@ -71,9 +70,7 @@ bool CSP_CompareUniqueIdentifier(uint32_t* idA, uint32_t* idB) {
 }
 
 // Reset the CPU.
-void CSP_Reboot(void) {
-  NVIC_SystemReset();
-}
+void CSP_Reboot(void) { NVIC_SystemReset(); }
 
 // Jump to the built-in system bootloader from anywhere. Useful for triggering
 // the bootloader without needing to open boxes and press buttons.
@@ -89,7 +86,7 @@ void CSP_JumpToBootloader(void) {
   // execution. We need to disable interrupts so that some other code that isn't
   // prepared for these changes can't accidentally take over execution.
   __disable_irq();
-  
+
   // The system bootloader assumes that the chip is in its reset configuration,
   // and that means running on its "high speed internal" RC oscillator. It's not
   // clear that we actually need to turn off the other clocks, but it seemed
@@ -105,17 +102,9 @@ void CSP_JumpToBootloader(void) {
   // this, but it was in ST example code. It's believable that if there are any
   // leftover interrupts post-jump that the bootloader would erroneously jump
   // to a handler.
-  RCC->CIR |= (
-    RCC_CIR_CSSC |
-    RCC_CIR_PLLSAIRDYC |
-    RCC_CIR_PLLI2SRDYC |
-    RCC_CIR_PLLRDYC |
-    RCC_CIR_HSERDYC |
-    RCC_CIR_HSIRDYC |
-    RCC_CIR_LSERDYC |
-    RCC_CIR_LSIRDYC |
-    RCC_CIR_HSERDYC
-  );
+  RCC->CIR |= (RCC_CIR_CSSC | RCC_CIR_PLLSAIRDYC | RCC_CIR_PLLI2SRDYC |
+               RCC_CIR_PLLRDYC | RCC_CIR_HSERDYC | RCC_CIR_HSIRDYC |
+               RCC_CIR_LSERDYC | RCC_CIR_LSIRDYC | RCC_CIR_HSERDYC);
 
   // Set AHB and APB clocks to reset state. The system bootloader configures
   // clocks and peripherals and we don't want any bits to be unexpectedly
@@ -125,7 +114,7 @@ void CSP_JumpToBootloader(void) {
   RCC->AHB3ENR = 0x00000000;
   RCC->APB1ENR = 0x00000000;
   RCC->APB2ENR = 0x00000000;
-  
+
   // Disable SysTick and return it to default values. ST code routinely uses the
   // SysTick for timeouts and configures it at start-up. We don't want to
   // accidentally fire the SysTick before the system bootloader setup code is
@@ -137,19 +126,19 @@ void CSP_JumpToBootloader(void) {
   // Not actually sure that we need to do either of these.
   RCC->CR &= ~RCC_CR_CSSON;  // Disable clock security switching.
   RCC->CSR |= RCC_CSR_RMVF;  // Clear reset flags.
- 
+
   // Clear interrupt enable and pending registers. We don't want to accidentally
   // trigger not-yet-ready interrupt handlers post-jump.
-  for(uint8_t i = 0; i < 5; i++) {
-    NVIC->ICER[i]=0xFFFFFFFF;
-    NVIC->ICPR[i]=0xFFFFFFFF;
+  for (uint8_t i = 0; i < 5; i++) {
+    NVIC->ICER[i] = 0xFFFFFFFF;
+    NVIC->ICPR[i] = 0xFFFFFFFF;
   }
 
   // See RM0090 section 9.2.1; we are setting up the memory map as if we had
   // booted with BOOT0 strapped low, which goes to the system bootloader.
   SYSCFG->MEMRMP &= ~(SYSCFG_MEMRMP_MEM_MODE);  // Clear memory mode bits.
-  SYSCFG->MEMRMP |= SYSCFG_MEMRMP_MEM_MODE_0;  // Select system flash mode.
-  
+  SYSCFG->MEMRMP |= SYSCFG_MEMRMP_MEM_MODE_0;   // Select system flash mode.
+
   // IRQs are enabled at reset, and the system bootloader does not enable them
   // internally. If they aren't re-enabled then USB enumeration is started and
   // times out eventually.
@@ -157,18 +146,19 @@ void CSP_JumpToBootloader(void) {
 
   // With the execution context set up, now we can jump to the bootloader.
   void (*SysMemBootJump)(void);
-  SysMemBootJump = (void (*)(void)) (*((uint32_t *) ((SysBootAddr + 4))));
-  __set_MSP(*(uint32_t *)SysBootAddr);
+  SysMemBootJump = (void (*)(void))(*((uint32_t*)((SysBootAddr + 4))));
+  __set_MSP(*(uint32_t*)SysBootAddr);
   SysMemBootJump();  // Perform the jump.
 }
 
-// Delay for a specified duration; useful when timers are unavailable.
+// Delay for a specified duration; useful when timers are unavailable. The user
+// must call CSP_EnableCycleCounter() before using this function.
 void CSP_DelayMicros(uint32_t waitTimeMicros, uint32_t cyclesPerSecond) {
   uint32_t currentCycleCount = DWT->CYCCNT;
   uint32_t cyclesToWait = cyclesPerSecond / (1000 * 1000) * waitTimeMicros;
   uint32_t waitUntilCycleCount = currentCycleCount + cyclesToWait;
 
-  while(DWT->CYCCNT < waitUntilCycleCount);
+  while (DWT->CYCCNT < waitUntilCycleCount);
 }
 
 // Enable the debug core cycle counter.
@@ -179,18 +169,31 @@ void CSP_EnableCycleCounter() {
 }
 
 // Compute CRC32 over an input buffer.
-uint32_t CSP_ComputeCrc32(void* input, uint32_t len) {
-  static bool firstRun = true;
-  if(firstRun) {
-    RCC->AHB1ENR |= RCC_AHB1ENR_CRCEN;
-    firstRun = false;
+uint32_t CSP_ComputeCrc32(uint32_t* input, uint32_t words) {
+  // This function is not thread-safe because it interacts directly with the
+  // CRC peripheral. We disable interrupts to prevent race conditions.
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
+
+  // Enable and reset the state of the CRC peripheral
+  RCC->AHB1ENR |= RCC_AHB1ENR_CRCEN;
+  CRC->CR |= CRC_CR_RESET;
+
+  // Feeds the input data into the CRC peripheral.
+  for (uint32_t i = 0; i < words; i++) {
+    CRC->DR = input[i];
   }
 
-  CRC->CR |= CRC_CR_RESET;
-  for(uint8_t i = 0; i < len; i++) {
-    CRC->DR = ((uint32_t*)input)[i];
-  }
-  return CRC->DR;
+  // Save the CRC before we disable the CRC peripheral.
+  uint32_t crc = CRC->DR;
+
+  // Disable the CRC peripheral.
+  RCC->AHB1ENR &= ~RCC_AHB1ENR_CRCEN;
+
+  // Re-enable interrupts.
+  __set_PRIMASK(primask);
+
+  return crc;
 }
 
 // Print out some clock information.
