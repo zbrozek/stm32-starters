@@ -232,6 +232,11 @@ void RCC_SetupPll(Rcc* rcc) {
 }
 
 void RCC_PrePostOps(Rcc* rcc) {
+  // Disable interrupts. Configuration below is read-modify-write and is not
+  // atomic. These operations are not interrupt-safe.
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
+
   // Clear and set PPRE2, PPRE1, HPRE bits to set AHB, APB1, and APB2 clocks.
   uint32_t hpre_bits = RCC_GetBinaryDivisorBits(rcc->sys, &rcc->ahb,
                                                 kAhbMaxDivisor, kAhbMaxClock);
@@ -264,6 +269,9 @@ void RCC_PrePostOps(Rcc* rcc) {
 #ifdef STM32F7
   FLASH->ACR |= FLASH_ACR_ARTEN | FLASH_ACR_PRFTEN;
 #endif
+
+  // Re-enable interrupts.
+  __set_PRIMASK(primask);
 }
 
 // Computes values for and sets up the STM32 clock tree, as well as setting
@@ -332,25 +340,84 @@ void RCC_ReadClocks(Rcc* rcc) {
   uint32_t vco = (rcc->pll.in / rcc->pll.m) * rcc->pll.n;
   rcc->pll.out = vco / ((rcc->pll.p + 1) * 2);
 
+  // Note that there is no /32 divisor, but there is no gap in the register
+  // values, so we use a look-up-table to work around this.
   uint32_t ahb_shift = 0;
-  if (RCC->CFGR & RCC_CFGR_HPRE_3) {
-    ahb_shift = (RCC->CFGR & (RCC_CFGR_HPRE & (RCC_CFGR_HPRE >> 1)));
-    ahb_shift >>= RCC_CFGR_HPRE_Pos + 1;
-    ahb_shift++;
+  switch (RCC->CFGR & RCC_CFGR_HPRE) {
+    case RCC_CFGR_HPRE_DIV1:
+      ahb_shift = 0;
+      break;
+    case RCC_CFGR_HPRE_DIV2:
+      ahb_shift = 1;
+      break;
+    case RCC_CFGR_HPRE_DIV4:
+      ahb_shift = 2;
+      break;
+    case RCC_CFGR_HPRE_DIV8:
+      ahb_shift = 3;
+      break;
+    case RCC_CFGR_HPRE_DIV16:
+      ahb_shift = 4;
+      break;
+    case RCC_CFGR_HPRE_DIV64:
+      ahb_shift = 6;
+      break;
+    case RCC_CFGR_HPRE_DIV128:
+      ahb_shift = 7;
+      break;
+    case RCC_CFGR_HPRE_DIV256:
+      ahb_shift = 8;
+      break;
+    case RCC_CFGR_HPRE_DIV512:
+      ahb_shift = 9;
+      break;
+    default:
+      break;
   }
 
+  // There is no gap in the APB1 and APB2 values, so we could use bit
+  // manipulation to do this. However, we use a LUT to match the style of the
+  // computation for the AHB prescaler.
   uint32_t apb1_shift = 0;
-  if (RCC->CFGR & RCC_CFGR_PPRE1_2) {
-    apb1_shift = (RCC->CFGR & (RCC_CFGR_PPRE1 & (RCC_CFGR_PPRE1 >> 1)));
-    apb1_shift >>= RCC_CFGR_PPRE1_Pos;
-    apb1_shift++;
+  switch (RCC->CFGR & RCC_CFGR_PPRE1) {
+    case RCC_CFGR_PPRE1_DIV1:
+      apb1_shift = 0;
+      break;
+    case RCC_CFGR_PPRE1_DIV2:
+      apb1_shift = 1;
+      break;
+    case RCC_CFGR_PPRE1_DIV4:
+      apb1_shift = 2;
+      break;
+    case RCC_CFGR_PPRE1_DIV8:
+      apb1_shift = 3;
+      break;
+    case RCC_CFGR_PPRE1_DIV16:
+      apb1_shift = 4;
+      break;
+    default:
+      break;
   }
 
   uint32_t apb2_shift = 0;
-  if (RCC->CFGR & RCC_CFGR_PPRE2_2) {
-    apb2_shift = (RCC->CFGR & (RCC_CFGR_PPRE2 & (RCC_CFGR_PPRE2 >> 1)));
-    apb2_shift >>= RCC_CFGR_PPRE2_Pos;
-    apb2_shift++;
+  switch (RCC->CFGR & RCC_CFGR_PPRE2) {
+    case RCC_CFGR_PPRE2_DIV1:
+      apb2_shift = 0;
+      break;
+    case RCC_CFGR_PPRE2_DIV2:
+      apb2_shift = 1;
+      break;
+    case RCC_CFGR_PPRE2_DIV4:
+      apb2_shift = 2;
+      break;
+    case RCC_CFGR_PPRE2_DIV8:
+      apb2_shift = 3;
+      break;
+    case RCC_CFGR_PPRE2_DIV16:
+      apb2_shift = 4;
+      break;
+    default:
+      break;
   }
 
   switch (rcc->src) {

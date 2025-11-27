@@ -53,7 +53,7 @@ void RCC_ReadClocks(Rcc* rcc);
 
 // Computes values for and sets up the STM32 clock tree, as well as setting
 // appropriate flash wait states (assuming 3.3 volts VCC).
-//    *rcc: May be NULL. If not, is populated with clock frequencies.
+//    *rcc: This must be allocated by the caller and will be modified in place.
 //    target: May be NULL if PLL is unused. Set to the target SYSCLK frequency.
 uint32_t RCC_ClockConfig(Rcc* rcc, uint32_t target);
 
