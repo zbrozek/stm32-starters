@@ -1,25 +1,26 @@
 // FreeRTOS headers
 #include "FreeRTOS.h"
-#include "FreeRTOS_sockets.h"
-#include "semphr.h"
 #include "task.h"
+#include "semphr.h"
+#include "FreeRTOS_sockets.h"
 
 // STM32 headers
-#include "core_cm7.h"
+#include "stm32.h"
 #include "csp.h"
-#include "ethernet.h"
 #include "pin.h"
 #include "rcc.h"
 #include "rng.h"
-#include "stm32f7xx.h"
+#include "spi.h"
+#include "ethernet.h"
+#include "ethernet_config.h"
 
 // Library headers
-#include <stdbool.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <yfuns.h>
 
 // Global variable declarations.
-uint32_t SystemCoreClock = 16 * 1000 * 1000;  // Internal RC oscillator is 16 MHz.
+uint32_t SystemCoreClock = 16 * 1000 * 1000;  // HSI is 16 MHz.
 
 // Don't actually need to do anything here, this is mostly just an example.
 bool PHY_Init(void) {
