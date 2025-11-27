@@ -2,5 +2,9 @@
 *.out
 *.map
 *.sim
+*.dep
 **/Debug/
 **/settings/
+**/Obj/
+**/Exe/
+**/Release/
