@@ -19,7 +19,7 @@
 #include <yfuns.h>
 
 // Global variable declarations.
-uint32_t SystemCoreClock = 8000000;  // Internal RC oscillator is 8 MHz.
+uint32_t SystemCoreClock = 16 * 1000 * 1000;  // Internal RC oscillator is 16 MHz.
 
 // Don't actually need to do anything here, this is mostly just an example.
 bool PHY_Init(void) {
@@ -62,7 +62,6 @@ int main(void) {
   rcc.pll.src = eRccSrcHse;
   SystemCoreClock = RCC_ClockConfig(&rcc, 168000000);
 
-  CSP_EnableCycleCounter();  // Enable CM7 debug core for nice timestamps.
   CSP_PrintStartupInfo();    // Cute boot message to assist with debugging.
 
   // Initialize our demo task.
@@ -80,6 +79,7 @@ int main(void) {
   // Board IP: 192.168.0.30
   uint8_t MacAddress[6];
   ETH_GetMacAddress(MacAddress);
+  RNG_Init();
   BaseType_t stack_initialized = FreeRTOS_IPInit(
       ucIPAddress, ucNetMask, ucGatewayAddress, ucDNSServerAddress, MacAddress);
 
@@ -130,7 +130,7 @@ void vApplicationTickHook(void) { CSP_UpdateGrossCycleCount(); }
 extern uint32_t ulApplicationGetNextSequenceNumber(
     uint32_t ulSourceAddress, uint16_t usSourcePort,
     uint32_t ulDestinationAddress, uint16_t usDestinationPort) {
-  uint32_t random_value;
+  uint32_t random_value = 0;
   RNG_GetRand32(&random_value);
   return random_value;
 }
@@ -175,4 +175,7 @@ void SystemInit(void) {
   // it is safe to enable that cache. If writes to instruction memory are
   // introduced at some point in the future, take care to manage the i-cache.
   SCB_EnableICache();
+
+  // Enable CM7 debug core for nice timestamps.
+  CSP_EnableCycleCounter();
 }

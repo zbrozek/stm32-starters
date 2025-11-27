@@ -20,7 +20,7 @@
 #include <yfuns.h>
 
 // Global variable declarations.
-uint32_t SystemCoreClock = 8000000;  // Internal RC oscillator is 8 MHz.
+uint32_t SystemCoreClock = 16 * 1000 * 1000;  // Internal RC oscillator is 16 MHz.
 
 // Don't actually need to do anything here, this is mostly just an example.
 bool PHY_Init(void)
@@ -64,7 +64,6 @@ int main()
   rcc.pll.src = eRccSrcHse;
   SystemCoreClock = RCC_ClockConfig(&rcc, 168000000);
 
-  CSP_EnableCycleCounter();  // Enable debug core for nice timestamps.
   CSP_PrintStartupInfo();  // Cute boot message to assist with debugging.
 
   // Initialize our demo task.
@@ -79,6 +78,7 @@ int main()
   // Board IP: 192.168.0.30
   uint8_t MacAddress[6];
   ETH_GetMacAddress(MacAddress);
+  RNG_Init();
   BaseType_t stack_initialized = FreeRTOS_IPInit( ucIPAddress,
       ucNetMask,
       ucGatewayAddress,
@@ -144,7 +144,7 @@ extern uint32_t ulApplicationGetNextSequenceNumber
   uint16_t usDestinationPort
 )
 {
-  uint32_t random_value;
+  uint32_t random_value = 0;
   RNG_GetRand32(&random_value);
   return random_value;
 }
@@ -181,4 +181,7 @@ void SystemInit(void)
   // this location may change if the application ends up launched by a
   // bootloader rather than the system loader.
   SCB->VTOR = FLASH_BASE;
+
+  // Enable debug core for nice timestamps.
+  CSP_EnableCycleCounter();
 }
